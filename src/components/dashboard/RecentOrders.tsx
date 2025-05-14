@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Mock data for the table
 const mockOrders = [
@@ -71,6 +72,7 @@ const formatStatus = (status: string) => {
 
 const RecentOrders = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   return (
     <Card className="col-span-full">
@@ -78,42 +80,44 @@ const RecentOrders = () => {
         <CardTitle>Recent Orders</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order #</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockOrders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-medium">{order.id}</TableCell>
-                <TableCell>{order.client}</TableCell>
-                <TableCell>{order.amount}</TableCell>
-                <TableCell>
-                  <Badge className={getStatusBadge(order.status)}>
-                    {formatStatus(order.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{order.date}</TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                  >
-                    View
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order #</TableHead>
+                <TableHead>Client</TableHead>
+                {!isMobile && <TableHead>Amount</TableHead>}
+                <TableHead>Status</TableHead>
+                {!isMobile && <TableHead>Date</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {mockOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium whitespace-nowrap">{order.id}</TableCell>
+                  <TableCell className="max-w-[180px] truncate">{order.client}</TableCell>
+                  {!isMobile && <TableCell>{order.amount}</TableCell>}
+                  <TableCell>
+                    <Badge className={getStatusBadge(order.status)}>
+                      {isMobile ? formatStatus(order.status).split(' ')[0] : formatStatus(order.status)}
+                    </Badge>
+                  </TableCell>
+                  {!isMobile && <TableCell>{order.date}</TableCell>}
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => navigate(`/order/${order.id}`)}
+                    >
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         <div className="mt-4 flex justify-end">
           <Button 
             variant="outline" 

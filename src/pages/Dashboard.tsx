@@ -5,10 +5,12 @@ import RecentOrders from "@/components/dashboard/RecentOrders";
 import StatusChart from "@/components/dashboard/StatusChart";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import { Package, CheckCircle, Clock, CircleDollarSign } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const role = currentUser?.role || "sales";
+  const isMobile = useIsMobile();
 
   // We'll show different stats based on user role
   const isAdminOrSales = role === "admin" || role === "sales";
@@ -16,11 +18,11 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {currentUser?.displayName || "User"}!</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Orders"
           value={isAdminOrSales ? "60" : "12"}

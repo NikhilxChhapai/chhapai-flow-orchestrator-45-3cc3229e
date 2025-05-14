@@ -10,6 +10,7 @@ import MainLayout from "./components/layout/MainLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CreateOrder from "./pages/CreateOrder";
+import OrderDetails from "./pages/OrderDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,9 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
+                  
+                  {/* Orders routes */}
+                  <Route path="/order/:orderId" element={<OrderDetails />} />
                   
                   {/* Routes for Admin and Sales only */}
                   <Route element={<ProtectedRoute requiredRoles={["admin", "sales"]} />}>
