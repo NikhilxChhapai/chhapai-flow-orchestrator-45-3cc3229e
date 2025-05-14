@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,6 +12,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CreateOrder from "./pages/CreateOrder";
 import OrderDetails from "./pages/OrderDetails";
+import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,7 @@ const App = () => (
                   {/* Routes for Admin and Sales only */}
                   <Route element={<ProtectedRoute requiredRoles={["admin", "sales"]} />}>
                     <Route path="/orders/create" element={<CreateOrder />} />
+                    <Route path="/approvals" element={<Approvals />} />
                     {/* Add other routes that require admin/sales role */}
                   </Route>
                   
