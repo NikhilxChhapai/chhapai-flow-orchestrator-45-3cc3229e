@@ -14,6 +14,9 @@ import CreateOrder from "./pages/CreateOrder";
 import OrderDetails from "./pages/OrderDetails";
 import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
+import Departments from "./pages/Departments";
+import Users from "./pages/Users";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +39,7 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/profile" element={<Profile />} />
                   
                   {/* Orders routes */}
                   <Route path="/order/:orderId" element={<OrderDetails />} />
@@ -45,6 +49,12 @@ const App = () => (
                     <Route path="/orders/create" element={<CreateOrder />} />
                     <Route path="/approvals" element={<Approvals />} />
                     {/* Add other routes that require admin/sales role */}
+                  </Route>
+                  
+                  {/* Routes for Admin only */}
+                  <Route element={<ProtectedRoute requiredRoles={["admin"]} />}>
+                    <Route path="/departments" element={<Departments />} />
+                    <Route path="/users" element={<Users />} />
                   </Route>
                   
                   {/* Other routes would go here */}
