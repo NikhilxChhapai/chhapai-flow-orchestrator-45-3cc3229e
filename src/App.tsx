@@ -22,6 +22,7 @@ import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Tasks from "./pages/Tasks";
 import Orders from "./pages/Orders";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
                   <Route element={<ProtectedRoute requiredRoles={["admin"]} />}>
                     <Route path="/departments" element={<Departments />} />
                     <Route path="/users" element={<Users />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
                   </Route>
                 </Route>
               </Route>
