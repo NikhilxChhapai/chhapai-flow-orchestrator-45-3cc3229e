@@ -17,6 +17,10 @@ import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Departments from "./pages/Departments";
 import Users from "./pages/Users";
+import Analytics from "./pages/Analytics";
+import Settings from "./pages/Settings";
+import Tasks from "./pages/Tasks";
+import Orders from "./pages/Orders";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +44,10 @@ const App = () => (
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/orders" element={<Orders />} />
                   
                   {/* Orders routes */}
                   <Route path="/order/:orderId" element={<OrderDetails />} />
@@ -56,8 +64,6 @@ const App = () => (
                     <Route path="/departments" element={<Departments />} />
                     <Route path="/users" element={<Users />} />
                   </Route>
-                  
-                  {/* Other routes would go here */}
                 </Route>
               </Route>
               
