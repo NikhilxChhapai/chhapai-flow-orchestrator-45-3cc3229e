@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +23,13 @@ interface OrderTimeline {
   date: Timestamp;
   note: string;
   formattedDate?: string;
+}
+
+// Define a separate TimelineEvent type to match the OrderTimeline component
+interface TimelineEvent {
+  status: string;
+  formattedDate: string;
+  note: string;
 }
 
 interface Order {
@@ -214,6 +220,14 @@ const OrderDetails = () => {
     );
   }
 
+  // Convert OrderTimeline[] to TimelineEvent[] to match the expected type in OrderTimeline component
+  const formattedTimeline: TimelineEvent[] = order.timeline ? 
+    order.timeline.map(item => ({
+      status: item.status,
+      formattedDate: item.formattedDate || format(item.date.toDate(), "yyyy-MM-dd"),
+      note: item.note
+    })) : [];
+
   return (
     <div className="space-y-6 animate-fade-in print:m-4">
       <OrderHeader
@@ -254,7 +268,7 @@ const OrderDetails = () => {
 
       {order.timeline && (
         <OrderTimeline 
-          timeline={order.timeline} 
+          timeline={formattedTimeline} 
           formatStatus={formatStatus} 
         />
       )}

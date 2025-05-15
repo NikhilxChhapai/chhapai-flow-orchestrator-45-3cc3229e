@@ -87,10 +87,13 @@ const BulkOrderOperations = () => {
     
     try {
       const ordersRef = collection(db, "orders");
-      let ordersQuery = ordersRef;
+      // Fix: Using a separate variable for the query
+      let ordersQuery;
       
       if (deleteCompletedOnly) {
         ordersQuery = query(ordersRef, where("status", "==", "Completed"));
+      } else {
+        ordersQuery = ordersRef;
       }
       
       const snapshot = await getDocs(ordersQuery);
