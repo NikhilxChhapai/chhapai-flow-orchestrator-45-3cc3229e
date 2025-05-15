@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,126 +23,133 @@ import {
   MoreHorizontal, 
   Plus, 
   Search, 
-  SlidersHorizontal 
+  Loader2
 } from "lucide-react";
+import { format } from "date-fns";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, Timestamp, where, deleteDoc, doc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
-interface Order {
+type Order = {
   id: string;
-  customerName: string;
-  date: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  total: number;
-  items: number;
-  address: string;
-}
+  orderNumber: string;
+  clientName: string;
+  createdAt: Timestamp;
+  status: string;
+  orderAmount: number;
+  products: any[];
+  deliveryAddress: string;
+};
 
 const Orders = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const { toast } = useToast();
   
-  // Sample orders data
-  const orderData: Order[] = [
-    {
-      id: "ORD-2023-5501",
-      customerName: "Alex Johnson",
-      date: "2025-05-10",
-      status: "delivered",
-      total: 1250.99,
-      items: 3,
-      address: "123 Main St, New York, NY"
-    },
-    {
-      id: "ORD-2023-5502",
-      customerName: "Sarah Williams",
-      date: "2025-05-12",
-      status: "processing",
-      total: 450.50,
-      items: 2,
-      address: "456 Oak Ave, Los Angeles, CA"
-    },
-    {
-      id: "ORD-2023-5503",
-      customerName: "Michael Brown",
-      date: "2025-05-13",
-      status: "pending",
-      total: 899.95,
-      items: 4,
-      address: "789 Pine St, Chicago, IL"
-    },
-    {
-      id: "ORD-2023-5504",
-      customerName: "Emily Davis",
-      date: "2025-05-15",
-      status: "shipped",
-      total: 375.25,
-      items: 1,
-      address: "101 Cedar Rd, Boston, MA"
-    },
-    {
-      id: "ORD-2023-5505",
-      customerName: "Robert Wilson",
-      date: "2025-05-08",
-      status: "cancelled",
-      total: 1100.00,
-      items: 5,
-      address: "202 Elm St, Dallas, TX"
-    },
-    {
-      id: "ORD-2023-5506",
-      customerName: "Jennifer Martinez",
-      date: "2025-05-14",
-      status: "processing",
-      total: 780.45,
-      items: 3,
-      address: "303 Birch Ln, Denver, CO"
-    },
-    {
-      id: "ORD-2023-5507",
-      customerName: "David Anderson",
-      date: "2025-05-11",
-      status: "delivered",
-      total: 2200.75,
-      items: 7,
-      address: "404 Spruce Dr, Seattle, WA"
-    },
-    {
-      id: "ORD-2023-5508",
-      customerName: "Lisa Taylor",
-      date: "2025-05-09",
-      status: "shipped",
-      total: 495.65,
-      items: 2,
-      address: "505 Maple Ct, Miami, FL"
+  useEffect(() => {
+    let ordersQuery;
+    
+    if (filterStatus) {
+      ordersQuery = query(
+        collection(db, "orders"),
+        where("status", "==", filterStatus),
+        orderBy("createdAt", "desc")
+      );
+    } else {
+      ordersQuery = query(
+        collection(db, "orders"),
+        orderBy("createdAt", "desc")
+      );
     }
-  ];
-  
-  // Filter and search orders
-  const filteredOrders = orderData
-    .filter(order => !filterStatus || order.status === filterStatus)
-    .filter(order => 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.address.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const unsubscribe = onSnapshot(
+      ordersQuery,
+      (snapshot) => {
+        const ordersData = snapshot.docs.map(doc => {
+          const data = doc.data() as Omit<Order, 'id'>;
+          return { id: doc.id, ...data };
+        });
+        setOrders(ordersData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching orders:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch orders. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
     );
+    
+    return () => unsubscribe();
+  }, [filterStatus, toast]);
   
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  // Filter orders based on search term
+  const filteredOrders = orders.filter(order => 
+    order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.deliveryAddress?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const formatDate = (timestamp: Timestamp) => {
+    if (!timestamp || !timestamp.toDate) return "N/A";
+    return format(timestamp.toDate(), "MMM d, yyyy");
   };
   
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    if (typeof amount !== 'number') return "₹0.00";
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'INR',
+      maximumFractionDigits: 2
     }).format(amount);
   };
   
-  const statusColors = {
-    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-    processing: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    shipped: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    delivered: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+  const getStatusClass = (status: string) => {
+    if (status.includes("Design")) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+    if (status.includes("Prepress")) return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
+    if (status.includes("Production")) return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300";
+    if (status === "ReadyToDispatch") return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+    if (status === "Completed") return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+    return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+  };
+  
+  const formatStatus = (status: string) => {
+    return status
+      .replace(/_/g, " ")
+      .replace(/([A-Z])/g, " $1")
+      .trim();
+  };
+  
+  const handleDeleteOrder = async (orderId: string) => {
+    if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+      try {
+        await deleteDoc(doc(db, "orders", orderId));
+        toast({
+          title: "Order Deleted",
+          description: "The order has been successfully deleted.",
+        });
+      } catch (error) {
+        console.error("Error deleting order:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete the order. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+  
+  const exportOrders = () => {
+    // In a real app, this would generate a CSV or Excel file
+    toast({
+      title: "Export Started",
+      description: "Your orders data is being prepared for download.",
+    });
   };
 
   return (
@@ -161,7 +168,7 @@ const Orders = () => {
               <span>New Order</span>
             </Button>
           </Link>
-          <Button variant="outline" className="flex items-center gap-1">
+          <Button variant="outline" className="flex items-center gap-1" onClick={exportOrders}>
             <Download size={16} />
             <span>Export</span>
           </Button>
@@ -194,20 +201,23 @@ const Orders = () => {
               <DropdownMenuItem onClick={() => setFilterStatus(null)}>
                 All Orders
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterStatus("pending")}>
-                Pending
+              <DropdownMenuItem onClick={() => setFilterStatus("Order_Received")}>
+                Order Received
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterStatus("processing")}>
-                Processing
+              <DropdownMenuItem onClick={() => setFilterStatus("Design_InProgress")}>
+                Design In Progress
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterStatus("shipped")}>
-                Shipped
+              <DropdownMenuItem onClick={() => setFilterStatus("Prepress_InProgress")}>
+                Prepress
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterStatus("delivered")}>
-                Delivered
+              <DropdownMenuItem onClick={() => setFilterStatus("Production_Printing")}>
+                Production
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterStatus("cancelled")}>
-                Cancelled
+              <DropdownMenuItem onClick={() => setFilterStatus("ReadyToDispatch")}>
+                Ready to Dispatch
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterStatus("Completed")}>
+                Completed
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -218,131 +228,209 @@ const Orders = () => {
         </div>
       </div>
       
-      {/* Orders Table (desktop) */}
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
-                  <TableCell>{formatDate(order.date)}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[order.status]}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{order.items}</TableCell>
-                  <TableCell>{formatCurrency(order.total)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end">
-                      <Link to={`/order/${order.id}`}>
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>Edit Order</DropdownMenuItem>
-                          <DropdownMenuItem>Send Invoice</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            Cancel Order
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Orders Cards (mobile) */}
-      <div className="grid gap-4 md:hidden">
-        {filteredOrders.map((order) => (
-          <Card key={order.id}>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{order.id}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{order.customerName}</p>
-                </div>
-                <Badge className={statusColors[order.status]}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="text-sm text-muted-foreground">Date:</div>
-                  <div className="text-sm">{formatDate(order.date)}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="text-sm text-muted-foreground">Items:</div>
-                  <div className="text-sm">{order.items}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="text-sm text-muted-foreground">Total:</div>
-                  <div className="text-sm font-medium">{formatCurrency(order.total)}</div>
-                </div>
-                <div className="pt-2 flex justify-end gap-2">
-                  <Link to={`/order/${order.id}`}>
-                    <Button size="sm" className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      <span>View</span>
-                    </Button>
-                  </Link>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit Order</DropdownMenuItem>
-                      <DropdownMenuItem>Send Invoice</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">
-                        Cancel Order
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {/* Orders Table (desktop) */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.length > 0 ? (
+                    filteredOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                        <TableCell>{order.clientName}</TableCell>
+                        <TableCell>{formatDate(order.createdAt)}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusClass(order.status)}>
+                            {formatStatus(order.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{order.products?.length || 0}</TableCell>
+                        <TableCell>{formatCurrency(order.orderAmount)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end">
+                            <Link to={`/order/${order.id}`}>
+                              <Button variant="ghost" size="icon">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => window.open(`/orders/edit/${order.id}`, '_blank')}
+                                >
+                                  Edit Order
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>Send Invoice</DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                >
+                                  Delete Order
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        {searchTerm || filterStatus ? (
+                          <>
+                            <p className="text-lg font-medium">No matching orders found</p>
+                            <p className="text-muted-foreground">
+                              Try adjusting your search or filter criteria
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-lg font-medium">No orders yet</p>
+                            <p className="text-muted-foreground">
+                              Create your first order to get started
+                            </p>
+                            <Link to="/orders/create">
+                              <Button className="mt-4">
+                                <Plus size={16} className="mr-2" />
+                                Create Order
+                              </Button>
+                            </Link>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-        ))}
-      </div>
+
+          {/* Orders Cards (mobile) */}
+          <div className="grid gap-4 md:hidden">
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order) => (
+                <Card key={order.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{order.orderNumber}</CardTitle>
+                        <p className="text-sm text-muted-foreground">{order.clientName}</p>
+                      </div>
+                      <Badge className={getStatusClass(order.status)}>
+                        {formatStatus(order.status)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-3">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="text-sm text-muted-foreground">Date:</div>
+                        <div className="text-sm">{formatDate(order.createdAt)}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="text-sm text-muted-foreground">Items:</div>
+                        <div className="text-sm">{order.products?.length || 0}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="text-sm text-muted-foreground">Total:</div>
+                        <div className="text-sm font-medium">{formatCurrency(order.orderAmount)}</div>
+                      </div>
+                      <div className="pt-2 flex justify-end gap-2">
+                        <Link to={`/order/${order.id}`}>
+                          <Button size="sm" className="flex items-center gap-1">
+                            <Eye className="h-4 w-4" />
+                            <span>View</span>
+                          </Button>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => window.open(`/orders/edit/${order.id}`, '_blank')}
+                            >
+                              Edit Order
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Send Invoice</DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => handleDeleteOrder(order.id)}
+                            >
+                              Delete Order
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center text-center p-6">
+                  {searchTerm || filterStatus ? (
+                    <>
+                      <p className="text-lg font-medium">No matching orders found</p>
+                      <p className="text-muted-foreground mt-1">
+                        Try adjusting your search or filter criteria
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-medium">No orders yet</p>
+                      <p className="text-muted-foreground mt-1">
+                        Create your first order to get started
+                      </p>
+                      <Link to="/orders/create">
+                        <Button className="mt-4">
+                          <Plus size={16} className="mr-2" />
+                          Create Order
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </>
+      )}
       
       {/* Pagination placeholder */}
-      <div className="flex items-center justify-center pt-4">
-        <Button variant="outline" size="sm" className="mx-1">Previous</Button>
-        <Button variant="outline" size="sm" className="mx-1">1</Button>
-        <Button variant="default" size="sm" className="mx-1">2</Button>
-        <Button variant="outline" size="sm" className="mx-1">3</Button>
-        <Button variant="outline" size="sm" className="mx-1">Next</Button>
-      </div>
+      {filteredOrders.length > 0 && (
+        <div className="flex items-center justify-center pt-4">
+          <Button variant="outline" size="sm" className="mx-1" disabled>Previous</Button>
+          <Button variant="default" size="sm" className="mx-1">1</Button>
+          <Button variant="outline" size="sm" className="mx-1" disabled>Next</Button>
+        </div>
+      )}
     </div>
   );
 };

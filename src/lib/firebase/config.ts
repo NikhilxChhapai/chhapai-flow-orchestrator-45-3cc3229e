@@ -1,12 +1,11 @@
 
-// This file will contain your Firebase configuration
-// For now, it's just a placeholder - you'll need to replace this with your actual Firebase config
+// Firebase configuration
 export const firebaseConfig = {
-  // Replace with your actual Firebase config
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDO0iaVVxEf7KvSijHvkFe-dM9bgrIcZg8",
+  authDomain: "chhapaixinternal.firebaseapp.com",
+  projectId: "chhapaixinternal",
+  storageBucket: "chhapaixinternal.firebasestorage.app",
+  messagingSenderId: "930672116400",
+  appId: "1:930672116400:web:79031f38fed61e1f6cf175",
+  measurementId: "G-1BKY3PVB05"
 };

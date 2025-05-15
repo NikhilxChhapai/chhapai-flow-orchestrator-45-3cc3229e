@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CreateOrder from "./pages/CreateOrder";
 import OrderDetails from "./pages/OrderDetails";
+import EditOrder from "./pages/EditOrder";
 import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
@@ -55,6 +56,7 @@ const App = () => (
                   {/* Routes for Admin and Sales only */}
                   <Route element={<ProtectedRoute requiredRoles={["admin", "sales"]} />}>
                     <Route path="/orders/create" element={<CreateOrder />} />
+                    <Route path="/orders/edit/:orderId" element={<EditOrder />} />
                     <Route path="/approvals" element={<Approvals />} />
                     {/* Add other routes that require admin/sales role */}
                   </Route>

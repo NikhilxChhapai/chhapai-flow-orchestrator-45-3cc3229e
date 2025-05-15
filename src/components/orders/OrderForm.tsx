@@ -1,6 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,31 +19,50 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Trash, Plus } from "lucide-react";
+import { CalendarIcon, Trash, Plus, Loader2 } from "lucide-react";
+import { createOrder, updateOrder } from "@/lib/firebase";
 
 interface OrderFormProps {
   isEditing?: boolean;
   initialData?: any;
+  orderId?: string;
 }
 
-const OrderForm = ({ isEditing = false, initialData = {} }: OrderFormProps) => {
+const OrderForm = ({ isEditing = false, initialData = {}, orderId = "" }: OrderFormProps) => {
   const [formData, setFormData] = useState({
-    orderNumber: initialData.orderNumber || "",
+    orderNumber: initialData.orderNumber || `ORD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
     clientName: initialData.clientName || "",
     orderAmount: initialData.orderAmount || "",
     gstNumber: initialData.gstNumber || "",
     contactNumber: initialData.contactNumber || "",
     deliveryDate: initialData.deliveryDate 
-      ? new Date(initialData.deliveryDate) 
+      ? new Date(initialData.deliveryDate.toDate?.() || initialData.deliveryDate) 
       : undefined,
     deliveryAddress: initialData.deliveryAddress || "",
     remarks: initialData.remarks || "",
     products: initialData.products || [{ name: "" }],
+    status: initialData.status || "Order_Received"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    // If editing and we have initialData, update the form
+    if (isEditing && initialData && Object.keys(initialData).length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        ...initialData,
+        deliveryDate: initialData.deliveryDate 
+          ? new Date(initialData.deliveryDate.toDate?.() || initialData.deliveryDate) 
+          : undefined,
+        // Ensure products is properly formatted
+        products: initialData.products || [{ name: "" }],
+      }));
+    }
+  }, [isEditing, initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -74,23 +94,43 @@ const OrderForm = ({ isEditing = false, initialData = {} }: OrderFormProps) => {
     setIsSubmitting(true);
     
     try {
-      // Here you would integrate with Firebase to save the order
-      console.log("Submitting order:", formData);
+      // Make sure we have required fields
+      if (!formData.clientName || !formData.orderAmount || !formData.contactNumber || !formData.deliveryAddress) {
+        throw new Error("Please fill in all required fields.");
+      }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add user information to the order
+      const orderData = {
+        ...formData,
+        createdBy: currentUser?.uid,
+        createdByName: currentUser?.displayName || currentUser?.email,
+        updatedBy: currentUser?.uid,
+        orderAmount: parseFloat(formData.orderAmount.toString()),
+      };
       
-      toast({
-        title: isEditing ? "Order Updated" : "Order Created",
-        description: `Order ${formData.orderNumber} has been ${isEditing ? "updated" : "created"} successfully.`,
-      });
+      let result;
+      if (isEditing && orderId) {
+        // Update existing order
+        result = await updateOrder(orderId, orderData);
+        toast({
+          title: "Order Updated",
+          description: `Order ${formData.orderNumber} has been updated successfully.`,
+        });
+      } else {
+        // Create new order
+        result = await createOrder(orderData);
+        toast({
+          title: "Order Created",
+          description: `Order ${formData.orderNumber} has been created successfully.`,
+        });
+      }
       
       navigate("/orders");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving order:", error);
       toast({
         title: "Error",
-        description: `Failed to ${isEditing ? "update" : "create"} order. Please try again.`,
+        description: error.message || `Failed to ${isEditing ? "update" : "create"} order. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -118,6 +158,7 @@ const OrderForm = ({ isEditing = false, initialData = {} }: OrderFormProps) => {
                 onChange={handleChange}
                 placeholder="e.g., ORD-2023-001"
                 required
+                readOnly={isEditing} // Order numbers shouldn't be changed once created
               />
             </div>
             <div className="space-y-2">
@@ -292,13 +333,14 @@ const OrderForm = ({ isEditing = false, initialData = {} }: OrderFormProps) => {
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? isEditing
-                ? "Updating..."
-                : "Creating..."
-              : isEditing
-              ? "Update Order"
-              : "Create Order"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditing ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              isEditing ? "Update Order" : "Create Order"
+            )}
           </Button>
         </CardFooter>
       </Card>

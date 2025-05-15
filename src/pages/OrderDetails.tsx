@@ -21,8 +21,21 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { ArrowLeft, Edit, Download, Printer, Phone, MapPin, Clock } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Edit, 
+  Download, 
+  Printer, 
+  Phone, 
+  MapPin, 
+  Clock, 
+  AlertCircle,
+  Loader2
+} from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getOrderById, updateOrderStatus, db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { format } from "date-fns";
 
 // Order status mapping for badge colors
 const getStatusBadge = (status: string) => {
@@ -43,61 +56,71 @@ const formatStatus = (status: string) => {
 };
 
 const OrderDetails = () => {
-  const { orderId } = useParams();
+  const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    // Simulate API call to fetch order details
-    const fetchOrder = async () => {
-      setLoading(true);
-      try {
-        // In a real app, you would fetch from your API
-        // For now, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockOrder = {
-          id: orderId,
-          client: "ABC Enterprises",
-          clientGst: "22AAAAA0000A1Z5",
-          amount: "₹12,500",
-          status: "Production_Printing",
-          createdDate: "2023-05-14",
-          deliveryDate: "2023-05-20",
-          contactNumber: "+91 9876543210",
-          deliveryAddress: "123 Business Park, Sector 5, Mumbai, Maharashtra 400001",
-          remarks: "Need special packaging for shipping overseas. Handle with care.",
-          products: [
-            { id: 1, name: "Business Cards", quantity: 1000, price: "₹3,500" },
-            { id: 2, name: "Brochures (Tri-fold)", quantity: 500, price: "₹9,000" }
-          ],
-          timeline: [
-            { date: "2023-05-14", status: "Order_Received", note: "Order received and confirmed" },
-            { date: "2023-05-15", status: "Design_InProgress", note: "Design work started" },
-            { date: "2023-05-16", status: "Design_AwaitingApproval", note: "Design sent to client for review" },
-            { date: "2023-05-17", status: "Design_Approved", note: "Design approved by client" },
-            { date: "2023-05-18", status: "Prepress_Approved", note: "Prepress work completed" },
-            { date: "2023-05-19", status: "Production_Printing", note: "Currently in printing phase" },
-          ]
-        };
-        
-        setOrder(mockOrder);
-      } catch (error) {
-        console.error("Error fetching order:", error);
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+
+    // Set up real-time listener for the order
+    const orderRef = doc(db, "orders", orderId);
+    const unsubscribe = onSnapshot(
+      orderRef, 
+      (doc) => {
+        if (doc.exists()) {
+          const orderData = { id: doc.id, ...doc.data() };
+          
+          // Format dates
+          if (orderData.createdAt) {
+            orderData.createdDate = format(
+              orderData.createdAt.toDate(), 
+              "yyyy-MM-dd"
+            );
+          }
+          
+          if (orderData.deliveryDate) {
+            if (typeof orderData.deliveryDate.toDate === 'function') {
+              orderData.formattedDeliveryDate = format(
+                orderData.deliveryDate.toDate(),
+                "yyyy-MM-dd"
+              );
+            }
+          }
+
+          // Format timeline dates
+          if (orderData.timeline) {
+            orderData.timeline = orderData.timeline.map((item: any) => ({
+              ...item,
+              formattedDate: format(item.date.toDate(), "yyyy-MM-dd"),
+            }));
+          }
+          
+          setOrder(orderData);
+        } else {
+          setOrder(null);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error getting order:", error);
         toast({
           title: "Error",
           description: "Failed to load order details. Please try again.",
           variant: "destructive",
         });
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    fetchOrder();
+    return () => unsubscribe();
   }, [orderId, toast]);
 
   const handleEdit = () => {
@@ -105,6 +128,7 @@ const OrderDetails = () => {
   };
 
   const handleDownloadInvoice = () => {
+    // In a real application, this would generate a PDF invoice
     toast({
       title: "Invoice Downloaded",
       description: "The invoice has been downloaded successfully.",
@@ -113,6 +137,28 @@ const OrderDetails = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!orderId || !order) return;
+    
+    setUpdating(true);
+    try {
+      await updateOrderStatus(orderId, newStatus, `Status updated to ${formatStatus(newStatus)}`);
+      toast({
+        title: "Status Updated",
+        description: `Order status updated to ${formatStatus(newStatus)}`,
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update order status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading) {
@@ -130,11 +176,8 @@ const OrderDetails = () => {
           </Button>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Loading...</h1>
         </div>
-        <div className="grid gap-4">
-          <Card className="animate-pulse">
-            <CardHeader className="h-24 bg-muted/50"></CardHeader>
-            <CardContent className="h-48 bg-muted/30"></CardContent>
-          </Card>
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
     );
@@ -157,10 +200,16 @@ const OrderDetails = () => {
         </div>
         <Card>
           <CardContent className="pt-6">
-            <p>The order you're looking for doesn't exist or you don't have permission to view it.</p>
-            <Button onClick={() => navigate('/orders')} className="mt-4">
-              View All Orders
-            </Button>
+            <div className="flex flex-col items-center justify-center text-center p-4">
+              <AlertCircle className="h-16 w-16 text-muted-foreground mb-4" />
+              <h2 className="text-xl font-semibold">Order Not Found</h2>
+              <p className="text-muted-foreground mt-2 mb-4">
+                The order you're looking for doesn't exist or you don't have permission to view it.
+              </p>
+              <Button onClick={() => navigate('/orders')}>
+                View All Orders
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -181,8 +230,8 @@ const OrderDetails = () => {
             <span className="hidden sm:inline">Back</span>
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Order #{order.id}</h1>
-            <p className="text-muted-foreground">{order.client}</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Order #{order.orderNumber}</h1>
+            <p className="text-muted-foreground">{order.clientName}</p>
           </div>
         </div>
         
@@ -220,15 +269,19 @@ const OrderDetails = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Amount</h3>
-                <p className="text-lg font-semibold mt-1">{order.amount}</p>
+                <p className="text-lg font-semibold mt-1">
+                  ₹{typeof order.orderAmount === 'number' 
+                      ? order.orderAmount.toLocaleString('en-IN')
+                      : order.orderAmount}
+                </p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Client</h3>
-                <p className="mt-1">{order.client}</p>
+                <p className="mt-1">{order.clientName}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">GST Number</h3>
-                <p className="mt-1">{order.clientGst || "Not provided"}</p>
+                <p className="mt-1">{order.gstNumber || "Not provided"}</p>
               </div>
             </div>
 
@@ -246,17 +299,70 @@ const OrderDetails = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {order.products.map((product: any) => (
-                      <TableRow key={product.id}>
+                    {order.products && order.products.map((product: any, index: number) => (
+                      <TableRow key={index}>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell className="text-right">{product.quantity}</TableCell>
-                        <TableCell className="text-right">{product.price}</TableCell>
+                        <TableCell className="text-right">{product.quantity || 1}</TableCell>
+                        <TableCell className="text-right">
+                          {product.price 
+                            ? `₹${product.price}`
+                            : "Included in total"}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
+            
+            {!updating ? (
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleUpdateStatus("Design_InProgress")}
+                  className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+                >
+                  Design In Progress
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleUpdateStatus("Prepress_InProgress")}
+                  className="bg-purple-50 text-purple-700 hover:bg-purple-100"
+                >
+                  Prepress
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleUpdateStatus("Production_Printing")}
+                  className="bg-amber-50 text-amber-700 hover:bg-amber-100"
+                >
+                  Production
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleUpdateStatus("ReadyToDispatch")}
+                  className="bg-green-50 text-green-700 hover:bg-green-100"
+                >
+                  Ready to Dispatch
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleUpdateStatus("Completed")}
+                  className="bg-gray-50 text-gray-700 hover:bg-gray-100"
+                >
+                  Completed
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-6 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -270,7 +376,9 @@ const OrderDetails = () => {
                 <Clock className="h-4 w-4 mr-2" />
                 <span className="text-sm">Expected Delivery</span>
               </div>
-              <p className="font-medium mt-1">{order.deliveryDate}</p>
+              <p className="font-medium mt-1">
+                {order.formattedDeliveryDate || "Not specified"}
+              </p>
             </div>
             
             <div>
@@ -299,21 +407,27 @@ const OrderDetails = () => {
         </CardHeader>
         <CardContent>
           <div className="relative pl-6 border-l border-border">
-            {order.timeline.map((event: any, index: number) => (
-              <div 
-                key={index} 
-                className={`relative mb-6 ${index === order.timeline.length - 1 ? "" : ""}`}
-              >
-                <div className="absolute -left-[25px] h-4 w-4 rounded-full bg-primary"></div>
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                  <div>
-                    <h4 className="text-base font-medium">{formatStatus(event.status)}</h4>
-                    <p className="text-sm text-muted-foreground">{event.note}</p>
+            {order.timeline && order.timeline.length > 0 ? (
+              order.timeline.map((event: any, index: number) => (
+                <div 
+                  key={index} 
+                  className={`relative mb-6 ${index === order.timeline.length - 1 ? "" : ""}`}
+                >
+                  <div className="absolute -left-[25px] h-4 w-4 rounded-full bg-primary"></div>
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                    <div>
+                      <h4 className="text-base font-medium">{formatStatus(event.status)}</h4>
+                      <p className="text-sm text-muted-foreground">{event.note}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground mt-1 md:mt-0">
+                      {event.formattedDate}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground mt-1 md:mt-0">{event.date}</span>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-muted-foreground">No timeline events recorded yet.</p>
+            )}
           </div>
         </CardContent>
       </Card>
