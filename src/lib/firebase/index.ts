@@ -87,7 +87,7 @@ export const createUserDocument = async (user: User, additionalData?: Record<str
         photoURL,
         createdAt,
         role: additionalData?.role || "sales", // Default role
-        ...additionalData
+        ...(additionalData || {}) // Fix: Use additionalData only if it exists, otherwise empty object
       });
     } catch (error) {
       console.error("Error creating user document", error);

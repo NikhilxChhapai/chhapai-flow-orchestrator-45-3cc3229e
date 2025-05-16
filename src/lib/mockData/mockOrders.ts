@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { MockTimestamp } from './mockTimestamp';
 import { 
@@ -195,7 +194,9 @@ let mockOrders: Order[] = [
         productionStages: {
           printing: true,
           binding: false,
-          finishing: false
+          finishing: false,
+          cutting: false,  // Adding the required properties
+          foiling: false   // Adding the required properties
         }
       },
       {
@@ -208,7 +209,9 @@ let mockOrders: Order[] = [
         productionStatus: "inProcess",
         productionStages: {
           printing: false,
-          folding: false
+          folding: false,
+          cutting: false,  // Adding the required properties
+          foiling: false   // Adding the required properties
         }
       }
     ],

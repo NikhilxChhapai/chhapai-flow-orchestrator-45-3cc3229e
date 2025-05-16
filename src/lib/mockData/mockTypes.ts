@@ -27,10 +27,10 @@ export interface OrderProduct {
   prepressStatus?: PrepressStatus;
   productionStatus?: ProductionStatus;
   productionStages?: {
+    [key: string]: boolean;
     printing: boolean;
     cutting: boolean;
     foiling: boolean;
-    [key: string]: boolean;
   };
 }
 
