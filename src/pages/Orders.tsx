@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, Timestamp, where, deleteDoc, doc } from "firebase/firestore";
+import { getOrdersWithRealTimeUpdates } from "@/lib/mockData"; // Updated import
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,7 +18,7 @@ type Order = {
   id: string;
   orderNumber: string;
   clientName: string;
-  createdAt: Timestamp;
+  createdAt: any; // Support both Firebase and Mock Timestamp
   status: string;
   orderAmount: number;
   products: any[];
@@ -38,44 +36,21 @@ const Orders = () => {
   const { toast } = useToast();
   
   useEffect(() => {
-    let ordersQuery;
-    
-    if (filterStatus) {
-      ordersQuery = query(
-        collection(db, "orders"),
-        where("status", "==", filterStatus),
-        orderBy("createdAt", "desc")
-      );
-    } else {
-      ordersQuery = query(
-        collection(db, "orders"),
-        orderBy("createdAt", "desc")
-      );
-    }
-    
-    const unsubscribe = onSnapshot(
-      ordersQuery,
-      (snapshot) => {
-        const ordersData = snapshot.docs.map(doc => {
-          const data = doc.data() as Omit<Order, 'id'>;
-          return { id: doc.id, ...data };
-        });
-        setOrders(ordersData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching orders:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch orders. Please try again.",
-          variant: "destructive",
-        });
-        setLoading(false);
+    // Use our mock data service instead of Firestore
+    const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
+      let filteredOrders = fetchedOrders;
+      
+      // Apply status filter if needed
+      if (filterStatus) {
+        filteredOrders = fetchedOrders.filter(order => order.status === filterStatus);
       }
-    );
+      
+      setOrders(filteredOrders);
+      setLoading(false);
+    });
     
     return () => unsubscribe();
-  }, [filterStatus, toast]);
+  }, [filterStatus]);
   
   // Filter orders based on search term
   const filteredOrders = orders.filter(order => 
@@ -84,7 +59,7 @@ const Orders = () => {
     order.deliveryAddress?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const formatDate = (timestamp: Timestamp) => {
+  const formatDate = (timestamp: any) => {
     if (!timestamp || !timestamp.toDate) return "N/A";
     return format(timestamp.toDate(), "MMM d, yyyy");
   };
@@ -134,7 +109,7 @@ const Orders = () => {
     });
   };
 
-  // Mock pagination for now (in real app, this would be server-side)
+  // Mock pagination 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / 10));
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

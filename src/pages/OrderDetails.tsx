@@ -5,8 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getOrderById, updateOrderStatus, db } from "@/lib/firebase";
-import { doc, onSnapshot, Timestamp } from "firebase/firestore";
+import { getOrderById, updateOrderStatus, db, OrderStatus } from "@/lib/mockData";
 import { format } from "date-fns";
 
 // Import refactored components
@@ -20,7 +19,7 @@ import OrderNotes from "@/components/orders/OrderNotes";
 // Define Order type to fix TypeScript errors
 interface OrderTimeline {
   status: string;
-  date: Timestamp;
+  date: any; // Use 'any' to support both Firebase and Mock Timestamp
   note: string;
   formattedDate?: string;
 }
@@ -38,9 +37,9 @@ interface Order {
   clientName: string;
   orderAmount: number;
   status: string;
-  createdAt: Timestamp;
+  createdAt: any; // Use 'any' to support both Firebase and Mock Timestamp
   createdDate?: string;
-  deliveryDate?: Timestamp;
+  deliveryDate?: any; // Use 'any' to support both Firebase and Mock Timestamp
   formattedDeliveryDate?: string;
   contactNumber: string;
   deliveryAddress: string;
@@ -83,56 +82,55 @@ const OrderDetails = () => {
     }
 
     // Set up real-time listener for the order
-    const orderRef = doc(db, "orders", orderId);
-    const unsubscribe = onSnapshot(
-      orderRef, 
-      (doc) => {
-        if (doc.exists()) {
-          const orderData = { id: doc.id, ...doc.data() } as Order;
+    const fetchOrder = async () => {
+      try {
+        const orderData = await getOrderById(orderId);
+        
+        if (orderData) {
+          const processedOrder = { ...orderData as Order };
           
           // Format dates
-          if (orderData.createdAt) {
-            orderData.createdDate = format(
-              orderData.createdAt.toDate(), 
+          if (processedOrder.createdAt) {
+            processedOrder.createdDate = format(
+              processedOrder.createdAt.toDate(), 
               "yyyy-MM-dd"
             );
           }
           
-          if (orderData.deliveryDate) {
-            if (typeof orderData.deliveryDate.toDate === 'function') {
-              orderData.formattedDeliveryDate = format(
-                orderData.deliveryDate.toDate(),
+          if (processedOrder.deliveryDate) {
+            if (typeof processedOrder.deliveryDate.toDate === 'function') {
+              processedOrder.formattedDeliveryDate = format(
+                processedOrder.deliveryDate.toDate(),
                 "yyyy-MM-dd"
               );
             }
           }
 
           // Format timeline dates
-          if (orderData.timeline) {
-            orderData.timeline = orderData.timeline.map((item: OrderTimeline) => ({
+          if (processedOrder.timeline) {
+            processedOrder.timeline = processedOrder.timeline.map((item: OrderTimeline) => ({
               ...item,
               formattedDate: format(item.date.toDate(), "yyyy-MM-dd"),
             }));
           }
           
-          setOrder(orderData);
+          setOrder(processedOrder);
         } else {
           setOrder(null);
         }
-        setLoading(false);
-      },
-      (error) => {
+      } catch (error) {
         console.error("Error getting order:", error);
         toast({
           title: "Error",
           description: "Failed to load order details. Please try again.",
           variant: "destructive",
         });
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchOrder();
   }, [orderId, toast]);
 
   const handleEdit = () => {
@@ -148,7 +146,8 @@ const OrderDetails = () => {
     
     setUpdating(true);
     try {
-      await updateOrderStatus(orderId, newStatus, `Status updated to ${formatStatus(newStatus)}`);
+      // Cast newStatus to OrderStatus type to fix TypeScript error
+      await updateOrderStatus(orderId, newStatus as OrderStatus, `Status updated to ${formatStatus(newStatus)}`);
       toast({
         title: "Status Updated",
         description: `Order status updated to ${formatStatus(newStatus)}`,

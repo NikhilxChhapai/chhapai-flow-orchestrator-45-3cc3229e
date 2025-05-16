@@ -7,9 +7,7 @@ import {
   logoutUser, 
   createUserDocument, 
   updateUserProfile 
-} from "@/lib/firebase";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+} from "@/lib/mockData"; // Updated import path
 import { useToast } from "@/hooks/use-toast";
 
 // Define the User type
@@ -48,38 +46,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Login function using Firebase
+  // Login function using mock Auth
   const login = async (email: string, password: string) => {
     try {
       const userCredential = await loginUser(email, password);
       const user = userCredential.user;
       
-      // Get additional user data from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      // Get additional user data 
       let role = "sales"; // Default role
       
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        role = userData.role || role;
-      } else {
-        // If user document doesn't exist in Firestore, create it
-        await createUserDocument(user, { role });
+      if (user) {
+        // Check if user has a role in mock storage
+        const savedUser = localStorage.getItem("mock-auth-user");
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          role = userData.role || role;
+        } else {
+          // If user document doesn't exist, create it
+          await createUserDocument(user, { role });
+        }
+        
+        setCurrentUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role,
+        });
+        
+        localStorage.setItem("chhapai-user", JSON.stringify({ 
+          uid: user.uid, 
+          email: user.email, 
+          displayName: user.displayName,
+          role,
+        }));
       }
-      
-      setCurrentUser({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        role,
-      });
-      
-      localStorage.setItem("chhapai-user", JSON.stringify({ 
-        uid: user.uid, 
-        email: user.email, 
-        displayName: user.displayName,
-        role,
-      }));
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -142,41 +143,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check Firebase auth state
-    const unsubscribe = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
-      if (user) {
-        // Get additional user data from Firestore
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        let role = "sales"; // Default role
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          role = userData.role || role;
-        } else {
-          // If user document doesn't exist in Firestore, create it
-          await createUserDocument(user, { role });
-        }
-        
-        setCurrentUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role,
-        });
-      } else {
-        // Check if there's a user in localStorage (for demonstration)
-        const savedUser = localStorage.getItem("chhapai-user");
-        if (savedUser) {
-          setCurrentUser(JSON.parse(savedUser));
-        } else {
-          setCurrentUser(null);
-        }
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    // Check for saved user data in localStorage instead of Firebase auth state
+    const savedUser = localStorage.getItem("chhapai-user");
+    
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+    } else {
+      setCurrentUser(null);
+    }
+    
+    setLoading(false);
   }, []);
 
   const value = {

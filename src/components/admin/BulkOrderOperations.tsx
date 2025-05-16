@@ -29,14 +29,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash, AlertCircle, Archive } from "lucide-react";
-import { db, getOrdersForBulkOperations } from "@/lib/firebase";
-import { collection, query, where, deleteDoc, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore";
+import { db, getOrdersForBulkOperations, OrderStatus } from "@/lib/mockData";
 
 const BulkOrderOperations = () => {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "">("");
   const [deleteCompletedOnly, setDeleteCompletedOnly] = useState(true);
   
   const handleBulkUpdateStatus = async () => {
@@ -52,12 +51,12 @@ const BulkOrderOperations = () => {
     setIsUpdating(true);
     
     try {
-      const batch = writeBatch(db);
-      const ordersRef = collection(db, "orders");
-      const snapshot = await getDocs(ordersRef);
+      const batch = db.writeBatch();
+      const orders = await getOrdersForBulkOperations();
       
-      snapshot.forEach((doc) => {
-        batch.update(doc.ref, { 
+      orders.forEach((order) => {
+        const docRef = db.doc('orders', order.id);
+        batch.update(docRef, { 
           status: selectedStatus,
           updatedAt: new Date()
         });
@@ -85,9 +84,9 @@ const BulkOrderOperations = () => {
     setIsDeleting(true);
     
     try {
-      // Using the fixed function to get orders
+      // Using the mock function to get orders
       const orders = await getOrdersForBulkOperations(
-        deleteCompletedOnly ? "Completed" : undefined
+        deleteCompletedOnly ? "Completed" as OrderStatus : undefined
       );
       
       if (orders.length === 0) {
@@ -102,9 +101,9 @@ const BulkOrderOperations = () => {
         return;
       }
       
-      const batch = writeBatch(db);
+      const batch = db.writeBatch();
       orders.forEach((order) => {
-        batch.delete(doc(db, "orders", order.id));
+        batch.delete(db.doc('orders', order.id));
       });
       
       await batch.commit();
@@ -139,7 +138,7 @@ const BulkOrderOperations = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Target Status</label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as OrderStatus)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select new status" />
                   </SelectTrigger>
