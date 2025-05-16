@@ -1,3 +1,4 @@
+
 // Import the functions from the Firebase SDKs
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, User } from "firebase/auth";
@@ -271,10 +272,14 @@ export const updateProductionStatus = async (
       
       // Update production stage if provided
       if (stage) {
-        products[productIndex].productionStages = {
-          ...(products[productIndex].productionStages || {}),
-          [stage]: true
-        };
+        if (!products[productIndex].productionStages) {
+          products[productIndex].productionStages = {};
+        }
+        
+        // Fix: Use type assertion to ensure productionStages is treated as an object
+        const stages = products[productIndex].productionStages as Record<string, boolean>;
+        stages[stage] = true;
+        products[productIndex].productionStages = stages;
       }
       
       const timeline = orderData.timeline || [];
@@ -383,7 +388,8 @@ export const getOrdersForBulkOperations = async (status?: string) => {
   const snapshot = await getDocs(ordersQuery);
   return snapshot.docs.map(doc => ({
     id: doc.id,
-    ...doc.data()
+    // Fix: Handle spread type by explicitly defining the return type
+    ...(doc.data() as Record<string, any>)
   }));
 };
 
