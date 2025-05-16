@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash, AlertCircle, Archive } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { db, getOrdersForBulkOperations } from "@/lib/firebase";
 import { collection, query, where, deleteDoc, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore";
 
 const BulkOrderOperations = () => {
@@ -86,19 +85,12 @@ const BulkOrderOperations = () => {
     setIsDeleting(true);
     
     try {
-      const ordersRef = collection(db, "orders");
-      // Fix: Using a separate variable for the query
-      let ordersQuery;
+      // Using the fixed function to get orders
+      const orders = await getOrdersForBulkOperations(
+        deleteCompletedOnly ? "Completed" : undefined
+      );
       
-      if (deleteCompletedOnly) {
-        ordersQuery = query(ordersRef, where("status", "==", "Completed"));
-      } else {
-        ordersQuery = ordersRef;
-      }
-      
-      const snapshot = await getDocs(ordersQuery);
-      
-      if (snapshot.empty) {
+      if (orders.length === 0) {
         toast({
           title: "No Orders Found",
           description: deleteCompletedOnly ? 
@@ -111,15 +103,15 @@ const BulkOrderOperations = () => {
       }
       
       const batch = writeBatch(db);
-      snapshot.forEach((doc) => {
-        batch.delete(doc.ref);
+      orders.forEach((order) => {
+        batch.delete(doc(db, "orders", order.id));
       });
       
       await batch.commit();
       
       toast({
         title: "Orders Deleted",
-        description: `Successfully deleted ${snapshot.size} orders.`,
+        description: `Successfully deleted ${orders.length} orders.`,
       });
     } catch (error) {
       console.error("Error deleting orders:", error);
