@@ -1,4 +1,3 @@
-
 // Import the functions from the Firebase SDKs
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, User } from "firebase/auth";

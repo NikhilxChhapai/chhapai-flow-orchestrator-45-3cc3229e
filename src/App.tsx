@@ -1,4 +1,5 @@
 
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -27,58 +28,60 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              
-              {/* Redirect root to dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* Protected routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/tasks" element={<Tasks />} />
-                  <Route path="/orders" element={<Orders />} />
-                  
-                  {/* Orders routes */}
-                  <Route path="/order/:orderId" element={<OrderDetails />} />
-                  
-                  {/* Routes for Admin and Sales only */}
-                  <Route element={<ProtectedRoute requiredRoles={["admin", "sales"]} />}>
-                    <Route path="/orders/create" element={<CreateOrder />} />
-                    <Route path="/orders/edit/:orderId" element={<EditOrder />} />
-                    <Route path="/approvals" element={<Approvals />} />
-                    {/* Add other routes that require admin/sales role */}
-                  </Route>
-                  
-                  {/* Routes for Admin only */}
-                  <Route element={<ProtectedRoute requiredRoles={["admin"]} />}>
-                    <Route path="/departments" element={<Departments />} />
-                    <Route path="/users" element={<Users />} />
-                    <Route path="/admin" element={<AdminDashboard />} />
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                
+                {/* Redirect root to dashboard */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                
+                {/* Protected routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<MainLayout />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/tasks" element={<Tasks />} />
+                    <Route path="/orders" element={<Orders />} />
+                    
+                    {/* Orders routes */}
+                    <Route path="/order/:orderId" element={<OrderDetails />} />
+                    
+                    {/* Routes for Admin and Sales only */}
+                    <Route element={<ProtectedRoute requiredRoles={["admin", "sales"]} />}>
+                      <Route path="/orders/create" element={<CreateOrder />} />
+                      <Route path="/orders/edit/:orderId" element={<EditOrder />} />
+                      <Route path="/approvals" element={<Approvals />} />
+                      {/* Add other routes that require admin/sales role */}
+                    </Route>
+                    
+                    {/* Routes for Admin only */}
+                    <Route element={<ProtectedRoute requiredRoles={["admin"]} />}>
+                      <Route path="/departments" element={<Departments />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/admin" element={<AdminDashboard />} />
+                    </Route>
                   </Route>
                 </Route>
-              </Route>
-              
-              {/* 404 route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+                
+                {/* 404 route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </React.StrictMode>
 );
 
 export default App;
