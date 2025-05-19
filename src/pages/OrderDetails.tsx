@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Pencil, ArrowLeft, Loader2, CheckCircle, AlertCircle, ShieldAlert } from "lucide-react";
@@ -60,11 +59,17 @@ const OrderDetails = () => {
           // Make sure to set default values for required fields that might be missing
           const completeOrder: Order = {
             ...orderData,
-            assignedDept: orderData.assignedDept || 'sales' as DepartmentType,
-            paymentStatus: orderData.paymentStatus || 'unpaid' as PaymentStatus
+            assignedDept: orderData.assignedDept || ('sales' as DepartmentType),
+            paymentStatus: orderData.paymentStatus || ('unpaid' as PaymentStatus),
+            // Ensure all products have required fields
+            products: orderData.products.map(product => ({
+              ...product,
+              quantity: product.quantity || 0,
+              price: product.price || 0
+            }))
           };
           
-          setOrder(completeOrder);
+          setOrder(completeOrder as Order);
         } else {
           toast({
             title: "Order Not Found",

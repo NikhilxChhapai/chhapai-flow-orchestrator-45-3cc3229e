@@ -11,8 +11,8 @@ export type { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, Prepress
 export interface OrderProduct {
   id?: string;
   name: string;
-  quantity?: number;
-  price?: number;
+  quantity: number; // Changed from optional to required to match firebase/types.ts
+  price: number;    // Changed from optional to required to match firebase/types.ts
   designStatus?: DesignStatus;
   prepressStatus?: PrepressStatus;
   productionStatus?: ProductionStatus;
