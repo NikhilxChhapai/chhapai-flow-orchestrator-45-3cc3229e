@@ -79,7 +79,8 @@ const OrderDetails = () => {
   const [updating, setUpdating] = useState(false);
 
   // Mock user role for permissions (in a real app, this would come from auth context)
-  const userRole = "admin"; // Can be "sales", "design", "prepress", "production", "admin"
+  // FIX: Define the user role as a union type of allowed values
+  const userRole: "admin" | "sales" | "design" | "prepress" | "production" = "admin";
 
   useEffect(() => {
     if (!orderId) {
@@ -234,7 +235,8 @@ const OrderDetails = () => {
     })) : [];
 
   // Check if user can edit payment status (sales or admin roles)
-  const canEditPayment = userRole === "sales" || userRole === "admin";
+  // FIX: Use a proper type check condition instead of direct comparison
+  const canEditPayment = userRole === "admin" || userRole === "sales";
 
   return (
     <div className="space-y-6 animate-fade-in print:m-4">
