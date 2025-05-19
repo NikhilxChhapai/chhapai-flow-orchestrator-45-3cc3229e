@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +11,9 @@ import {
   LayoutDashboard, 
   Workflow, 
   Database,
-  Save
+  Save,
+  Edit,
+  Building2
 } from "lucide-react";
 import { 
   Table, 
@@ -24,6 +27,9 @@ import { Switch as SwitchComponent } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import DepartmentControl from "@/components/admin/DepartmentControl";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mock data for demonstration
 const userPermissions = [
@@ -61,6 +67,14 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("users");
   const [compSettings, setCompSettings] = useState(componentSettings);
   const [workflowSets, setWorkflowSets] = useState(workflowSettings);
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userForm, setUserForm] = useState({
+    name: "",
+    email: "",
+    role: "",
+    department: ""
+  });
   
   // Update component settings
   const handleComponentToggle = (id: string) => {
@@ -85,6 +99,28 @@ const AdminPanel = () => {
     });
   };
 
+  // Handle edit user
+  const handleEditUser = (user: any) => {
+    setCurrentUser(user);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department
+    });
+    setEditUserDialogOpen(true);
+  };
+
+  // Update user
+  const saveUserChanges = () => {
+    // In a real app, this would update the user in Firebase
+    toast({
+      title: "User Updated",
+      description: `User ${userForm.name} has been updated successfully.`,
+    });
+    setEditUserDialogOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -95,10 +131,14 @@ const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="users" onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4">
+        <TabsList className="grid grid-cols-5">
           <TabsTrigger value="users">
             <Users className="mr-2 h-4 w-4" />
             <span>User Permissions</span>
+          </TabsTrigger>
+          <TabsTrigger value="departments">
+            <Building2 className="mr-2 h-4 w-4" />
+            <span>Departments</span>
           </TabsTrigger>
           <TabsTrigger value="dashboard">
             <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -145,7 +185,10 @@ const AdminPanel = () => {
                           <span className="capitalize">{user.role}</span>
                         </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm">Edit</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -160,6 +203,11 @@ const AdminPanel = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        {/* Departments Tab */}
+        <TabsContent value="departments" className="mt-6">
+          <DepartmentControl />
         </TabsContent>
         
         {/* Dashboard Components Tab */}
@@ -340,6 +388,76 @@ const AdminPanel = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User Permissions</DialogTitle>
+            <DialogDescription>
+              Update user roles and department assignments.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input 
+                id="name" 
+                value={userForm.name} 
+                onChange={(e) => setUserForm({...userForm, name: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                value={userForm.email} 
+                onChange={(e) => setUserForm({...userForm, email: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select 
+                value={userForm.role} 
+                onValueChange={(value) => setUserForm({...userForm, role: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="design">Design</SelectItem>
+                  <SelectItem value="prepress">Prepress</SelectItem>
+                  <SelectItem value="production">Production</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select 
+                value={userForm.department} 
+                onValueChange={(value) => setUserForm({...userForm, department: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Sales">Sales</SelectItem>
+                  <SelectItem value="Design">Design</SelectItem>
+                  <SelectItem value="Prepress">Prepress</SelectItem>
+                  <SelectItem value="Production">Production</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUserDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveUserChanges}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

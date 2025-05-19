@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar as SidebarComponent } from "@/components/ui/sidebar";
@@ -6,6 +7,7 @@ import { Button } from "../ui/button";
 import { LayoutDashboard, FileText, CheckCircle, Users, BarChart2, Settings, Building2, User, ShieldAlert } from "lucide-react";
 import AdminAccessDropdown from "./AdminAccessDropdown";
 import { useAuth } from "@/contexts/AuthContext";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Import logo images
 const logoFull = "/logo-full.png"; // Path to your full logo
@@ -15,6 +17,7 @@ interface SidebarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 const Sidebar = ({
   collapsed,
   setCollapsed
@@ -30,13 +33,30 @@ const Sidebar = ({
 
   // Check if admin
   const isAdmin = userRole === "admin";
-  return <aside className={cn("min-h-screen border-r bg-background transition-all duration-300 ease-in-out", collapsed ? "w-[80px]" : "w-[250px]")}>
+
+  // Department-specific colors
+  const getDeptColor = (dept: string) => {
+    switch(dept.toLowerCase()) {
+      case 'design': return 'text-blue-600 hover:text-blue-800';
+      case 'prepress': return 'text-purple-600 hover:text-purple-800';
+      case 'production': return 'text-amber-600 hover:text-amber-800';
+      case 'sales': return 'text-green-600 hover:text-green-800';
+      default: return '';
+    }
+  };
+
+  return (
+    <aside className={cn("min-h-screen border-r bg-background transition-all duration-300 ease-in-out", collapsed ? "w-[80px]" : "w-[250px]")}>
       <div className="flex h-full flex-col">
         {/* Sidebar header with logo */}
         <div className={cn("flex h-16 items-center border-b px-4", collapsed ? "justify-center" : "justify-between")}>
           {/* Logo area - shows appropriate logo based on sidebar state */}
           <div className="flex items-center">
-            
+            {collapsed ? (
+              <img src={logoIcon || "/logo-icon.png"} alt="Logo" className="h-8 w-8" />
+            ) : (
+              <img src={logoFull || "/logo-full.png"} alt="Chhapai" className="h-8" />
+            )}
             {!collapsed && <span className="ml-2 text-xl font-semibold">Chhapai</span>}
           </div>
           
@@ -59,7 +79,10 @@ const Sidebar = ({
           <ul className="space-y-1">
             {/* Dashboard */}
             <li>
-              <Link to="/dashboard" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/dashboard") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/dashboard" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/dashboard") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <LayoutDashboard className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Dashboard</span>}
               </Link>
@@ -67,7 +90,10 @@ const Sidebar = ({
 
             {/* Orders */}
             <li>
-              <Link to="/orders" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/orders") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/orders" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/orders") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <FileText className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Orders</span>}
               </Link>
@@ -75,7 +101,10 @@ const Sidebar = ({
 
             {/* Approvals */}
             {(userRole === "admin" || userRole === "sales") && <li>
-                <Link to="/approvals" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/approvals") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                <Link to="/approvals" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                  isActive("/approvals") 
+                    ? "bg-secondary text-secondary-foreground" 
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                   <CheckCircle className="mr-2 h-5 w-5" />
                   {!collapsed && <span>Approvals</span>}
                 </Link>
@@ -83,7 +112,10 @@ const Sidebar = ({
 
             {/* Tasks */}
             <li>
-              <Link to="/tasks" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/tasks") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/tasks" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/tasks") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <CheckCircle className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Tasks</span>}
               </Link>
@@ -91,11 +123,66 @@ const Sidebar = ({
 
             {/* Analytics */}
             <li>
-              <Link to="/analytics" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/analytics") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/analytics" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/analytics") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <BarChart2 className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Analytics</span>}
               </Link>
             </li>
+
+            {/* Department sections - only show if not collapsed */}
+            {!collapsed && (
+              <li className="pt-4">
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="departments" className="border-none">
+                    <AccordionTrigger className="py-1 text-sm text-muted-foreground">
+                      Departments
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-1">
+                      <ul className="space-y-1">
+                        {/* Design */}
+                        <li>
+                          <Link to="/departments/design" 
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium ${getDeptColor('design')} transition-colors`}>
+                            <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                            Design Department
+                          </Link>
+                        </li>
+                        
+                        {/* Prepress */}
+                        <li>
+                          <Link to="/departments/prepress" 
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium ${getDeptColor('prepress')} transition-colors`}>
+                            <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                            Prepress Department
+                          </Link>
+                        </li>
+                        
+                        {/* Production */}
+                        <li>
+                          <Link to="/departments/production" 
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium ${getDeptColor('production')} transition-colors`}>
+                            <span className="w-2 h-2 rounded-full bg-amber-500 mr-2"></span>
+                            Production Department
+                          </Link>
+                        </li>
+                        
+                        {/* Sales */}
+                        <li>
+                          <Link to="/departments/sales" 
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium ${getDeptColor('sales')} transition-colors`}>
+                            <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                            Sales Department
+                          </Link>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </li>
+            )}
 
             {/* Admin section */}
             {isAdmin && <>
@@ -109,7 +196,10 @@ const Sidebar = ({
 
                 {/* Users */}
                 <li>
-                  <Link to="/users" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/users") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                  <Link to="/users" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                    isActive("/users") 
+                      ? "bg-secondary text-secondary-foreground" 
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                     <Users className="mr-2 h-5 w-5" />
                     {!collapsed && <span>Users</span>}
                   </Link>
@@ -117,7 +207,10 @@ const Sidebar = ({
 
                 {/* Departments */}
                 <li>
-                  <Link to="/departments" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/departments") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                  <Link to="/departments" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                    isActive("/departments") 
+                      ? "bg-secondary text-secondary-foreground" 
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                     <Building2 className="mr-2 h-5 w-5" />
                     {!collapsed && <span>Departments</span>}
                   </Link>
@@ -125,7 +218,10 @@ const Sidebar = ({
 
                 {/* Admin Dashboard */}
                 <li>
-                  <Link to="/admin" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/admin") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                  <Link to="/admin" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                    isActive("/admin") 
+                      ? "bg-secondary text-secondary-foreground" 
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                     <LayoutDashboard className="mr-2 h-5 w-5" />
                     {!collapsed && <span>Admin Dashboard</span>}
                   </Link>
@@ -133,7 +229,10 @@ const Sidebar = ({
 
                 {/* Admin Panel */}
                 <li>
-                  <Link to="/admin/panel" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/admin/panel") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                  <Link to="/admin/panel" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                    isActive("/admin/panel") 
+                      ? "bg-secondary text-secondary-foreground" 
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                     <ShieldAlert className="mr-2 h-5 w-5" />
                     {!collapsed && <span>Admin Panel</span>}
                   </Link>
@@ -142,7 +241,10 @@ const Sidebar = ({
 
             {/* Settings */}
             <li className="mt-auto pt-4">
-              <Link to="/settings" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/settings") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/settings" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/settings") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <Settings className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Settings</span>}
               </Link>
@@ -150,7 +252,10 @@ const Sidebar = ({
 
             {/* Profile */}
             <li>
-              <Link to="/profile" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", isActive("/profile") ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+              <Link to="/profile" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/profile") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <User className="mr-2 h-5 w-5" />
                 {!collapsed && <span>Profile</span>}
               </Link>
@@ -163,4 +268,5 @@ const Sidebar = ({
       </div>
     </aside>;
 };
+
 export default Sidebar;
