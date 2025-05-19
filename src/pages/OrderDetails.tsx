@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Pencil, ArrowLeft, Loader2, CheckCircle, AlertCircle, ShieldAlert } from "lucide-react";
@@ -50,7 +51,7 @@ const OrderDetails = () => {
           if (orderData.timeline) {
             const formattedTimeline = orderData.timeline.map(event => ({
               ...event,
-              formattedDate: new Date(event.date.toDate()).toLocaleString(), // Using toDate() instead of accessing private seconds
+              formattedDate: new Date(event.date.toDate()).toLocaleString(), 
               note: event.note || "" // Ensure note is always defined
             }));
             orderData.timeline = formattedTimeline;
@@ -379,12 +380,12 @@ const OrderDetails = () => {
         )}
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full overflow-auto">
-          <TabsTrigger value="details">Order Details</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="workflow">Workflow</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full mb-6 bg-muted/70 text-muted-foreground">
+          <TabsTrigger value="details" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Order Details</TabsTrigger>
+          <TabsTrigger value="products" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Products</TabsTrigger>
+          <TabsTrigger value="workflow" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Workflow</TabsTrigger>
+          <TabsTrigger value="timeline" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Timeline</TabsTrigger>
         </TabsList>
         
         <div className="mt-6">
@@ -420,6 +421,7 @@ const OrderDetails = () => {
                   updating={updatingStatus}
                   formatStatus={formatStatus}
                   getStatusBadge={getStatusBadge}
+                  departmentType={order.assignedDept}
                 />
                 
                 <OrderPayment 
@@ -431,8 +433,8 @@ const OrderDetails = () => {
                     id: currentUser?.uid || '',
                     email: currentUser?.email || '',
                     name: currentUser?.displayName || '',
-                    role: currentUser?.role || 'sales',
-                    department: currentUser?.role || 'sales',
+                    role: userRole,
+                    department: userDept,
                     createdAt: new Date()
                   }, order)}
                   updating={updatingStatus}
@@ -443,14 +445,14 @@ const OrderDetails = () => {
           
           {/* Products Tab */}
           <TabsContent value="products">
-            <div className="bg-white rounded-md shadow p-6">
+            <div className="bg-white rounded-md shadow-sm border p-6">
               <OrderProducts products={order.products} />
             </div>
           </TabsContent>
           
           {/* Workflow Tab */}
           <TabsContent value="workflow">
-            <div className="bg-white rounded-md shadow p-6">
+            <div className="bg-white rounded-md shadow-sm border p-6">
               <OrderProductsWorkflow 
                 products={order.products} 
                 orderId={order.id} 

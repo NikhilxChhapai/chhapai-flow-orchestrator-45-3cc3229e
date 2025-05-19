@@ -183,77 +183,80 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
   // Render workflow based on department
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium">
+      <h3 className="text-lg font-semibold text-foreground">
         {department.charAt(0).toUpperCase() + department.slice(1)} Department Workflow
       </h3>
       
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Status</TableHead>
-            {department === "production" && (
-              <TableHead>Production Stages</TableHead>
-            )}
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {relevantProducts.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell className="font-medium">{product.name}</TableCell>
-              <TableCell>{product.quantity}</TableCell>
-              <TableCell className="flex items-center space-x-2">
-                <span>{formatStatus(product[getStatusField(department)])}</span>
-                {getStatusIndicator(product[getStatusField(department)])}
-              </TableCell>
-              
+      <div className="border rounded-md shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/30">
+            <TableRow>
+              <TableHead className="font-semibold text-foreground">Product</TableHead>
+              <TableHead className="font-semibold text-foreground">Quantity</TableHead>
+              <TableHead className="font-semibold text-foreground">Status</TableHead>
               {department === "production" && (
-                <TableCell>
-                  <div className="flex flex-col space-y-2">
-                    {product.productionStages && Object.entries(product.productionStages).map(([stage, completed]) => (
-                      <div key={stage} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`${product.id}-${stage}`} 
-                          checked={completed} 
-                          onCheckedChange={(checked) => 
-                            handleStageToggle(product.id, stage, checked === true)
-                          }
-                          disabled={updating[product.id || ""]}
-                        />
-                        <label 
-                          htmlFor={`${product.id}-${stage}`}
-                          className="text-sm capitalize cursor-pointer"
-                        >
-                          {stage}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </TableCell>
+                <TableHead className="font-semibold text-foreground">Production Stages</TableHead>
               )}
-              
-              <TableCell>
-                <Select
-                  value={product[getStatusField(department)] || ""}
-                  onValueChange={(value) => handleStatusChange(product.id, value)}
-                  disabled={updating[product.id || ""]}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Update status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getStatusOptions(department).map(option => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
+              <TableHead className="font-semibold text-foreground">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {relevantProducts.map((product, index) => (
+              <TableRow key={product.id} className={index % 2 === 0 ? "bg-white" : "bg-muted/10"}>
+                <TableCell className="font-medium text-foreground">{product.name}</TableCell>
+                <TableCell className="text-foreground">{product.quantity}</TableCell>
+                <TableCell className="flex items-center space-x-2">
+                  <span className="text-foreground">{formatStatus(product[getStatusField(department)])}</span>
+                  {getStatusIndicator(product[getStatusField(department)])}
+                </TableCell>
+                
+                {department === "production" && (
+                  <TableCell>
+                    <div className="flex flex-col space-y-2">
+                      {product.productionStages && Object.entries(product.productionStages).map(([stage, completed]) => (
+                        <div key={stage} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`${product.id}-${stage}`} 
+                            checked={completed} 
+                            onCheckedChange={(checked) => 
+                              handleStageToggle(product.id, stage, checked === true)
+                            }
+                            disabled={updating[product.id || ""]}
+                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                          />
+                          <label 
+                            htmlFor={`${product.id}-${stage}`}
+                            className="text-sm capitalize cursor-pointer text-foreground"
+                          >
+                            {stage}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </TableCell>
+                )}
+                
+                <TableCell>
+                  <Select
+                    value={product[getStatusField(department)] || ""}
+                    onValueChange={(value) => handleStatusChange(product.id, value)}
+                    disabled={updating[product.id || ""]}
+                  >
+                    <SelectTrigger className="w-[180px] bg-white">
+                      <SelectValue placeholder="Update status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getStatusOptions(department).map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
