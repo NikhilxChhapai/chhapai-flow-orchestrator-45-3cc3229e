@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Users, Briefcase, Layers, PaintRoller } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
@@ -42,6 +42,42 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  // Handle quick login with demo accounts
+  const handleQuickLogin = async (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword("password");
+    
+    // Auto submit the form after a short delay to show the filled credentials
+    setIsLoading(true);
+    try {
+      await login(demoEmail, "password");
+      toast({
+        title: "Login successful",
+        description: "Welcome to Chhapai Workflow Manager",
+      });
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error(error);
+      setError(error.message || "Invalid email or password");
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Demo account data with emails and icons
+  const demoAccounts = [
+    { role: "Admin", email: "admin@chhapai.com", icon: <User className="h-4 w-4" /> },
+    { role: "Sales", email: "sales@chhapai.com", icon: <Briefcase className="h-4 w-4" /> },
+    { role: "Design", email: "design@chhapai.com", icon: <PaintRoller className="h-4 w-4" /> },
+    { role: "Prepress", email: "prepress@chhapai.com", icon: <Layers className="h-4 w-4" /> },
+    { role: "Production", email: "production@chhapai.com", icon: <Users className="h-4 w-4" /> }
+  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -105,11 +141,29 @@ const Login = () => {
             </CardFooter>
           </form>
         </Card>
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          <p>For testing, use these demo accounts:</p>
-          <p>admin@chhapai.com | design@chhapai.com | sales@chhapai.com</p>
-          <p>prepress@chhapai.com | production@chhapai.com</p>
-          <p>Password: password</p>
+        
+        {/* Quick Login Section */}
+        <div className="mt-6">
+          <h3 className="text-center text-sm font-medium mb-3 text-muted-foreground">Quick Login for Demo</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {demoAccounts.map((account) => (
+              <Button 
+                key={account.email}
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground transition-all"
+                onClick={() => handleQuickLogin(account.email)}
+                disabled={isLoading}
+              >
+                {account.icon}
+                <span className="ml-2">{account.role}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mt-4 text-center text-xs text-muted-foreground">
+          <p>All demo accounts use password: "password"</p>
         </div>
       </div>
     </div>
