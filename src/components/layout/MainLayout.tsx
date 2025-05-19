@@ -24,7 +24,7 @@ const MainLayout = () => {
 
   return (
     <div className="flex h-screen w-full bg-background">
-      <Sidebar isOpen={sidebarOpen} />
+      <Sidebar collapsed={!sidebarOpen} setCollapsed={(value) => setSidebarOpen(!value)} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar toggleSidebar={toggleSidebar} />
         <main className="flex-1 overflow-auto p-3 md:p-6">

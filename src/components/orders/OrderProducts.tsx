@@ -1,4 +1,5 @@
 
+import React, { useState } from "react";
 import { 
   Table, 
   TableBody, 
@@ -14,7 +15,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@/components/ui/collapsible";
-import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface Product {
