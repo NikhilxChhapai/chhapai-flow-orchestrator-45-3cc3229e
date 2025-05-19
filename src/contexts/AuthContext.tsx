@@ -17,6 +17,7 @@ type User = {
   displayName: string | null;
   role: string;
   photoURL?: string | null;
+  department?: string;
 };
 
 // Define the context type
@@ -25,7 +26,7 @@ type AuthContextType = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: { displayName?: string, photoURL?: string }) => Promise<void>;
+  updateProfile: (data: { displayName?: string, photoURL?: string, role?: string, department?: string }) => Promise<void>;
 };
 
 // Create the context with default values
@@ -54,6 +55,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Get additional user data 
       let role = "sales"; // Default role
+      let department = "";
+      
+      // Determine role based on email
+      if (email.includes("admin")) {
+        role = "admin";
+        department = "Administration";
+      } else if (email.includes("sales")) {
+        role = "sales";
+        department = "Sales";
+      } else if (email.includes("design")) {
+        role = "design";
+        department = "Design";
+      } else if (email.includes("prepress")) {
+        role = "prepress";
+        department = "Prepress";
+      } else if (email.includes("production")) {
+        role = "production";
+        department = "Production";
+      }
       
       if (user) {
         // Check if user has a role in mock storage
@@ -61,25 +81,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (savedUser) {
           const userData = JSON.parse(savedUser);
           role = userData.role || role;
+          department = userData.department || department;
         } else {
           // If user document doesn't exist, create it
-          await createUserDocument(user, { role });
+          await createUserDocument(user, { role, department });
         }
         
-        setCurrentUser({
+        const updatedUser = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: user.displayName || email.split("@")[0],
           photoURL: user.photoURL,
           role,
-        });
+          department
+        };
         
-        localStorage.setItem("chhapai-user", JSON.stringify({ 
-          uid: user.uid, 
-          email: user.email, 
-          displayName: user.displayName,
-          role,
-        }));
+        setCurrentUser(updatedUser);
+        
+        localStorage.setItem("chhapai-user", JSON.stringify(updatedUser));
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -110,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Update profile function
-  const updateProfile = async (data: { displayName?: string, photoURL?: string }) => {
+  const updateProfile = async (data: { displayName?: string, photoURL?: string, role?: string, department?: string }) => {
     try {
       if (!auth.currentUser) {
         throw new Error("No user is currently logged in");

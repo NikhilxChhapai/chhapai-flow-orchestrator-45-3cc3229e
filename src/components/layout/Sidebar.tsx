@@ -18,6 +18,10 @@ import {
 import AdminAccessDropdown from "./AdminAccessDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Import logo images
+const logoFull = "/logo-full.png"; // Path to your full logo
+const logoIcon = "/logo-icon.png"; // Path to your icon-only logo (for collapsed state)
+
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
@@ -49,7 +53,19 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
             collapsed ? "justify-center" : "justify-between"
           )}
         >
-          {!collapsed && <span className="text-xl font-semibold">PrintFlow</span>}
+          {/* Logo area - shows appropriate logo based on sidebar state */}
+          <div className="flex items-center">
+            <img 
+              src={collapsed ? logoIcon : logoFull} 
+              alt="Chhapai" 
+              className={cn(
+                "transition-all duration-300",
+                collapsed ? "h-8 w-8" : "h-8"
+              )}
+            />
+            {!collapsed && <span className="ml-2 text-xl font-semibold">Chhapai</span>}
+          </div>
+          
           <Button
             variant="ghost"
             size="icon"
