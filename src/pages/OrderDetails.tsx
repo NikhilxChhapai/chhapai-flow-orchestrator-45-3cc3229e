@@ -57,11 +57,14 @@ const OrderDetails = () => {
             orderData.timeline = formattedTimeline;
           }
           
-          setOrder({
+          // Make sure to set default values for required fields that might be missing
+          const completeOrder: Order = {
             ...orderData,
-            // Ensure required fields have default values if missing
-            assignedDept: orderData.assignedDept || 'sales' as DepartmentType
-          });
+            assignedDept: orderData.assignedDept || 'sales' as DepartmentType,
+            paymentStatus: orderData.paymentStatus || 'unpaid' as PaymentStatus
+          };
+          
+          setOrder(completeOrder);
         } else {
           toast({
             title: "Order Not Found",

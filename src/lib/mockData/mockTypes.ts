@@ -1,6 +1,9 @@
 
 import { MockTimestamp } from './mockTimestamp';
 
+// First import the types so they're available for use within this file
+import { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus } from '../firebase/types';
+
 // Re-export types correctly with 'export type'
 export type { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus } from '../firebase/types';
 
@@ -42,7 +45,7 @@ export interface Order {
   createdByName?: string;
   updatedBy?: string;
   assignedDept: DepartmentType; // Changed from optional to required to match firebase/types.ts
-  paymentStatus?: PaymentStatus;
+  paymentStatus: PaymentStatus; // Changed from optional to required to match firebase/types.ts
   gstNumber?: string;
   contactNumber: string;
   deliveryDate?: MockTimestamp;
