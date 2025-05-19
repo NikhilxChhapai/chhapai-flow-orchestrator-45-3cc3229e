@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -5,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getOrderById, updateOrderStatus, db, OrderStatus } from "@/lib/mockData";
+import { getOrderById, updateOrderStatus, db, OrderStatus, PaymentStatus } from "@/lib/firebase";
 import { format } from "date-fns";
 
 // Import refactored components
@@ -15,6 +16,7 @@ import OrderProducts from "@/components/orders/OrderProducts";
 import OrderDelivery from "@/components/orders/OrderDelivery";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderNotes from "@/components/orders/OrderNotes";
+import OrderPayment from "@/components/orders/OrderPayment";
 
 // Define Order type to fix TypeScript errors
 interface OrderTimeline {
@@ -43,6 +45,7 @@ interface Order {
   formattedDeliveryDate?: string;
   contactNumber: string;
   deliveryAddress: string;
+  paymentStatus?: PaymentStatus; // Added paymentStatus
   products: Array<{name: string; quantity?: number; price?: number}>;
   timeline?: OrderTimeline[];
   remarks?: string;
@@ -74,6 +77,9 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
   const [updating, setUpdating] = useState(false);
+
+  // Mock user role for permissions (in a real app, this would come from auth context)
+  const userRole = "admin"; // Can be "sales", "design", "prepress", "production", "admin"
 
   useEffect(() => {
     if (!orderId) {
@@ -227,6 +233,9 @@ const OrderDetails = () => {
       note: item.note
     })) : [];
 
+  // Check if user can edit payment status (sales or admin roles)
+  const canEditPayment = userRole === "sales" || userRole === "admin";
+
   return (
     <div className="space-y-6 animate-fade-in print:m-4">
       <OrderHeader
@@ -256,13 +265,27 @@ const OrderDetails = () => {
               <OrderProducts products={order.products} />
             </CardContent>
           </Card>
+          
+          {/* Add OrderPayment component */}
+          <OrderPayment
+            orderId={order.id}
+            orderAmount={order.orderAmount}
+            paymentStatus={order.paymentStatus || "unpaid"}
+            canEditPayment={canEditPayment}
+          />
         </div>
 
-        <OrderDelivery
-          deliveryDate={order.formattedDeliveryDate || ""}
-          contactNumber={order.contactNumber}
-          deliveryAddress={order.deliveryAddress}
-        />
+        <div className="space-y-6">
+          <OrderDelivery
+            deliveryDate={order.formattedDeliveryDate || ""}
+            contactNumber={order.contactNumber}
+            deliveryAddress={order.deliveryAddress}
+          />
+          
+          {order.remarks && (
+            <OrderNotes remarks={order.remarks} />
+          )}
+        </div>
       </div>
 
       {order.timeline && (
@@ -270,10 +293,6 @@ const OrderDetails = () => {
           timeline={formattedTimeline} 
           formatStatus={formatStatus} 
         />
-      )}
-
-      {order.remarks && (
-        <OrderNotes remarks={order.remarks} />
       )}
 
       <div className="print:hidden">

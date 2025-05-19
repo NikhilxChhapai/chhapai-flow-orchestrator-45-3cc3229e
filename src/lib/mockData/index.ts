@@ -187,6 +187,27 @@ export {
   getOrdersForBulkOperations
 };
 
+// New function to update payment status
+export const updatePaymentStatus = async (orderId: string, paymentStatus: string, note: string = "") => {
+  const order = await getOrderById(orderId);
+  
+  if (order) {
+    const timeline = [...(order.timeline || [])];
+    
+    timeline.push({
+      status: `Payment_${paymentStatus}`,
+      date: MockTimestamp.now(),
+      note: note || `Payment status updated to ${paymentStatus}`
+    });
+    
+    await updateOrder(orderId, {
+      paymentStatus,
+      updatedAt: MockTimestamp.now(),
+      timeline
+    });
+  }
+};
+
 // Function to assign order to department
 export const assignOrderToDepartment = async (orderId: string, department: string, newStatus: string) => {
   const order = await getOrderById(orderId);
