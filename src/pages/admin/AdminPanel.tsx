@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,10 @@ import {
   Database,
   Save,
   Edit,
-  Building2
+  Building2,
+  Plus,
+  Trash,
+  CheckCircle
 } from "lucide-react";
 import { 
   Table, 
@@ -28,28 +31,48 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import DepartmentControl from "@/components/admin/DepartmentControl";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { DepartmentType } from "@/lib/firebase/types";
 
-// Mock data for demonstration
+// Enhanced mock data for demonstration
 const userPermissions = [
-  { id: 1, name: "John Doe", email: "john@example.com", role: "admin", department: "Admin" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "sales", department: "Sales" },
-  { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "design", department: "Design" },
-  { id: 4, name: "Sarah Williams", email: "sarah@example.com", role: "prepress", department: "Prepress" },
-  { id: 5, name: "David Brown", email: "david@example.com", role: "production", department: "Production" },
+  { id: 1, name: "John Doe", email: "john@example.com", role: "admin", department: "Admin", permissions: ["create_orders", "edit_orders", "view_all_orders", "approve_designs"] },
+  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "sales", department: "Sales", permissions: ["create_orders", "edit_orders", "view_department_orders", "approve_designs"] },
+  { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "design", department: "Design", permissions: ["view_department_orders", "update_design_status"] },
+  { id: 4, name: "Sarah Williams", email: "sarah@example.com", role: "prepress", department: "Prepress", permissions: ["view_department_orders", "update_prepress_status"] },
+  { id: 5, name: "David Brown", email: "david@example.com", role: "production", department: "Production", permissions: ["view_department_orders", "update_production_status"] },
 ];
 
-// Dashboard components settings
+// Dashboard components settings with department assignment
 const componentSettings = [
-  { id: "recent_orders", name: "Recent Orders", enabled: true, section: "dashboard" },
-  { id: "revenue_chart", name: "Revenue Chart", enabled: true, section: "dashboard" },
-  { id: "status_chart", name: "Status Chart", enabled: true, section: "dashboard" },
-  { id: "stats_cards", name: "Statistics Cards", enabled: true, section: "dashboard" },
-  { id: "admin_quick_actions", name: "Admin Quick Actions", enabled: true, section: "dashboard" },
-  { id: "order_history", name: "Order History", enabled: true, section: "orders" },
-  { id: "order_filters", name: "Order Filters", enabled: true, section: "orders" },
-  { id: "bulk_actions", name: "Bulk Order Actions", enabled: true, section: "admin" },
+  { id: "recent_orders", name: "Recent Orders", enabled: true, section: "dashboard", departments: ["admin", "sales"] },
+  { id: "revenue_chart", name: "Revenue Chart", enabled: true, section: "dashboard", departments: ["admin", "sales"] },
+  { id: "status_chart", name: "Status Chart", enabled: true, section: "dashboard", departments: ["admin", "sales", "design", "prepress", "production"] },
+  { id: "stats_cards", name: "Statistics Cards", enabled: true, section: "dashboard", departments: ["admin", "sales", "design", "prepress", "production"] },
+  { id: "admin_quick_actions", name: "Admin Quick Actions", enabled: true, section: "dashboard", departments: ["admin"] },
+  { id: "design_queue", name: "Design Queue", enabled: true, section: "dashboard", departments: ["design", "admin"] },
+  { id: "prepress_queue", name: "Prepress Queue", enabled: true, section: "dashboard", departments: ["prepress", "admin"] },
+  { id: "production_queue", name: "Production Queue", enabled: true, section: "dashboard", departments: ["production", "admin"] },
+  { id: "order_history", name: "Order History", enabled: true, section: "orders", departments: ["admin", "sales"] },
+  { id: "order_filters", name: "Order Filters", enabled: true, section: "orders", departments: ["admin", "sales", "design", "prepress", "production"] },
+  { id: "bulk_actions", name: "Bulk Order Actions", enabled: true, section: "admin", departments: ["admin"] },
+];
+
+// Available permissions list
+const availablePermissions = [
+  { id: "create_orders", name: "Create Orders", description: "Can create new orders" },
+  { id: "edit_orders", name: "Edit Orders", description: "Can edit existing orders" },
+  { id: "view_all_orders", name: "View All Orders", description: "Can view all orders across departments" },
+  { id: "view_department_orders", name: "View Department Orders", description: "Can view orders assigned to their department" },
+  { id: "approve_designs", name: "Approve Designs", description: "Can approve design work" },
+  { id: "approve_prepress", name: "Approve Prepress", description: "Can approve prepress work" },
+  { id: "mark_completed", name: "Mark Orders Completed", description: "Can mark orders as completed" },
+  { id: "update_design_status", name: "Update Design Status", description: "Can update design status" },
+  { id: "update_prepress_status", name: "Update Prepress Status", description: "Can update prepress status" },
+  { id: "update_production_status", name: "Update Production Status", description: "Can update production status" },
+  { id: "assign_departments", name: "Assign Departments", description: "Can assign orders to departments" }
 ];
 
 // Workflow settings
@@ -68,12 +91,22 @@ const AdminPanel = () => {
   const [compSettings, setCompSettings] = useState(componentSettings);
   const [workflowSets, setWorkflowSets] = useState(workflowSettings);
   const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [newUserDialogOpen, setNewUserDialogOpen] = useState(false);
+  const [users, setUsers] = useState(userPermissions);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
     role: "",
-    department: ""
+    department: "",
+    permissions: [] as string[]
+  });
+  const [newUser, setNewUser] = useState({
+    name: "",
+    email: "",
+    role: "",
+    department: "",
+    permissions: [] as string[]
   });
   
   // Update component settings
@@ -81,6 +114,27 @@ const AdminPanel = () => {
     setCompSettings(prev => prev.map(item => 
       item.id === id ? { ...item, enabled: !item.enabled } : item
     ));
+  };
+  
+  // Update department visibility for component
+  const handleDepartmentToggle = (componentId: string, department: string) => {
+    setCompSettings(prev => prev.map(item => {
+      if (item.id === componentId) {
+        const departments = [...(item.departments || [])];
+        if (departments.includes(department)) {
+          return { 
+            ...item, 
+            departments: departments.filter(d => d !== department) 
+          };
+        } else {
+          return { 
+            ...item, 
+            departments: [...departments, department] 
+          };
+        }
+      }
+      return item;
+    }));
   };
   
   // Update workflow settings
@@ -99,6 +153,41 @@ const AdminPanel = () => {
     });
   };
 
+  // Toggle permission for a user
+  const togglePermission = (permission: string) => {
+    if (!userForm.permissions) {
+      setUserForm({ ...userForm, permissions: [permission] });
+      return;
+    }
+    
+    if (userForm.permissions.includes(permission)) {
+      setUserForm({
+        ...userForm,
+        permissions: userForm.permissions.filter(p => p !== permission)
+      });
+    } else {
+      setUserForm({
+        ...userForm,
+        permissions: [...userForm.permissions, permission]
+      });
+    }
+  };
+  
+  // Toggle permission for new user
+  const toggleNewUserPermission = (permission: string) => {
+    if (newUser.permissions.includes(permission)) {
+      setNewUser({
+        ...newUser,
+        permissions: newUser.permissions.filter(p => p !== permission)
+      });
+    } else {
+      setNewUser({
+        ...newUser,
+        permissions: [...newUser.permissions, permission]
+      });
+    }
+  };
+
   // Handle edit user
   const handleEditUser = (user: any) => {
     setCurrentUser(user);
@@ -106,19 +195,85 @@ const AdminPanel = () => {
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department
+      department: user.department,
+      permissions: user.permissions || []
     });
     setEditUserDialogOpen(true);
   };
 
   // Update user
   const saveUserChanges = () => {
-    // In a real app, this would update the user in Firebase
+    setUsers(users.map(u => 
+      u.id === currentUser.id 
+        ? { 
+            ...u, 
+            name: userForm.name,
+            email: userForm.email,
+            role: userForm.role as string,
+            department: userForm.department,
+            permissions: userForm.permissions 
+          } 
+        : u
+    ));
+    
     toast({
       title: "User Updated",
       description: `User ${userForm.name} has been updated successfully.`,
     });
     setEditUserDialogOpen(false);
+  };
+  
+  // Add new user
+  const handleAddUser = () => {
+    // Basic validation
+    if (!newUser.name || !newUser.email || !newUser.role || !newUser.department) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newId = users.length + 1;
+    
+    setUsers([
+      ...users,
+      {
+        id: newId,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        department: newUser.department,
+        permissions: newUser.permissions
+      }
+    ]);
+    
+    toast({
+      title: "User Added",
+      description: `User ${newUser.name} has been added successfully.`,
+    });
+    
+    // Reset form
+    setNewUser({
+      name: "",
+      email: "",
+      role: "",
+      department: "",
+      permissions: []
+    });
+    
+    setNewUserDialogOpen(false);
+  };
+  
+  // Delete user
+  const handleDeleteUser = (userId: number) => {
+    setUsers(users.filter(user => user.id !== userId));
+    
+    toast({
+      title: "User Deleted",
+      description: "User has been deleted successfully.",
+    });
   };
 
   return (
@@ -158,10 +313,19 @@ const AdminPanel = () => {
         <TabsContent value="users" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <ShieldAlert className="mr-2 h-5 w-5" />
-                User Permissions
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShieldAlert className="mr-2 h-5 w-5" />
+                  User Permissions
+                </div>
+                <Button onClick={() => setNewUserDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
               </CardTitle>
+              <CardDescription>
+                Manage user accounts and their permissions across the system
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-auto">
@@ -172,11 +336,12 @@ const AdminPanel = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Permissions</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {userPermissions.map((user) => (
+                    {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
@@ -185,21 +350,44 @@ const AdminPanel = () => {
                           <span className="capitalize">{user.role}</span>
                         </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
+                          <div className="flex flex-wrap gap-1">
+                            {user.permissions && user.permissions.length > 0 ? (
+                              user.permissions.slice(0, 2).map(perm => (
+                                <Badge key={perm} variant="outline" className="text-xs">
+                                  {perm.replace('_', ' ')}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground text-xs">No permissions</span>
+                            )}
+                            {user.permissions && user.permissions.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{user.permissions.length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-500 hover:bg-red-50"
+                              onClick={() => handleDeleteUser(user.id)}
+                            >
+                              <Trash className="mr-2 h-4 w-4" />
+                              Delete
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <Button onClick={() => saveSettings("User permission")}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -216,28 +404,79 @@ const AdminPanel = () => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <LayoutDashboard className="mr-2 h-5 w-5" />
-                Dashboard Components
+                Dashboard Components by Department
               </CardTitle>
+              <CardDescription>
+                Configure which components appear on the dashboard for each department
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Dashboard Components</h3>
-                  <div className="grid gap-4">
-                    {compSettings
-                      .filter(item => item.section === "dashboard")
-                      .map((component) => (
-                        <div key={component.id} className="flex items-center justify-between">
-                          <Label htmlFor={component.id}>{component.name}</Label>
-                          <SwitchComponent 
-                            id={component.id}
-                            checked={component.enabled}
-                            onCheckedChange={() => handleComponentToggle(component.id)}
-                          />
-                        </div>
-                      ))
-                    }
-                  </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Component</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Admin</TableHead>
+                        <TableHead>Sales</TableHead>
+                        <TableHead>Design</TableHead>
+                        <TableHead>Prepress</TableHead>
+                        <TableHead>Production</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {compSettings
+                        .filter(item => item.section === "dashboard")
+                        .map((component) => (
+                          <TableRow key={component.id}>
+                            <TableCell className="font-medium">{component.name}</TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-enabled`}
+                                checked={component.enabled}
+                                onCheckedChange={() => handleComponentToggle(component.id)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-admin`}
+                                checked={component.departments?.includes("admin") || false}
+                                onCheckedChange={() => handleDepartmentToggle(component.id, "admin")}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-sales`}
+                                checked={component.departments?.includes("sales") || false}
+                                onCheckedChange={() => handleDepartmentToggle(component.id, "sales")}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-design`}
+                                checked={component.departments?.includes("design") || false}
+                                onCheckedChange={() => handleDepartmentToggle(component.id, "design")}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-prepress`}
+                                checked={component.departments?.includes("prepress") || false}
+                                onCheckedChange={() => handleDepartmentToggle(component.id, "prepress")}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SwitchComponent 
+                                id={`${component.id}-production`}
+                                checked={component.departments?.includes("production") || false}
+                                onCheckedChange={() => handleDepartmentToggle(component.id, "production")}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
                 </div>
                 
                 <Separator />
@@ -391,70 +630,206 @@ const AdminPanel = () => {
 
       {/* Edit User Dialog */}
       <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit User Permissions</DialogTitle>
             <DialogDescription>
-              Update user roles and department assignments.
+              Update user roles, department assignments and permissions.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input 
-                id="name" 
-                value={userForm.name} 
-                onChange={(e) => setUserForm({...userForm, name: e.target.value})} 
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input 
+                  id="name" 
+                  value={userForm.name} 
+                  onChange={(e) => setUserForm({...userForm, name: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  value={userForm.email} 
+                  onChange={(e) => setUserForm({...userForm, email: e.target.value})} 
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                value={userForm.email} 
-                onChange={(e) => setUserForm({...userForm, email: e.target.value})} 
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select 
+                  value={userForm.role} 
+                  onValueChange={(value) => setUserForm({...userForm, role: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="design">Design</SelectItem>
+                    <SelectItem value="prepress">Prepress</SelectItem>
+                    <SelectItem value="production">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Select 
+                  value={userForm.department} 
+                  onValueChange={(value) => setUserForm({...userForm, department: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Sales">Sales</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Prepress">Prepress</SelectItem>
+                    <SelectItem value="Production">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            <Separator />
+            
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select 
-                value={userForm.role} 
-                onValueChange={(value) => setUserForm({...userForm, role: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="design">Design</SelectItem>
-                  <SelectItem value="prepress">Prepress</SelectItem>
-                  <SelectItem value="production">Production</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Select 
-                value={userForm.department} 
-                onValueChange={(value) => setUserForm({...userForm, department: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Sales">Sales</SelectItem>
-                  <SelectItem value="Design">Design</SelectItem>
-                  <SelectItem value="Prepress">Prepress</SelectItem>
-                  <SelectItem value="Production">Production</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-base">Permissions</Label>
+              <p className="text-sm text-muted-foreground">Select which actions this user can perform</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                {availablePermissions.map(permission => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <SwitchComponent 
+                      id={`perm-${permission.id}`} 
+                      checked={userForm.permissions?.includes(permission.id)}
+                      onCheckedChange={() => togglePermission(permission.id)}
+                    />
+                    <div>
+                      <Label htmlFor={`perm-${permission.id}`} className="text-sm font-medium">
+                        {permission.name}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">{permission.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUserDialogOpen(false)}>Cancel</Button>
-            <Button onClick={saveUserChanges}>Save Changes</Button>
+            <Button onClick={saveUserChanges}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add New User Dialog */}
+      <Dialog open={newUserDialogOpen} onOpenChange={setNewUserDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account and set their permissions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-name">Name</Label>
+                <Input 
+                  id="new-name" 
+                  value={newUser.name} 
+                  onChange={(e) => setNewUser({...newUser, name: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-email">Email</Label>
+                <Input 
+                  id="new-email" 
+                  value={newUser.email} 
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})} 
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-role">Role</Label>
+                <Select 
+                  value={newUser.role} 
+                  onValueChange={(value) => setNewUser({...newUser, role: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="design">Design</SelectItem>
+                    <SelectItem value="prepress">Prepress</SelectItem>
+                    <SelectItem value="production">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-department">Department</Label>
+                <Select 
+                  value={newUser.department} 
+                  onValueChange={(value) => setNewUser({...newUser, department: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Sales">Sales</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Prepress">Prepress</SelectItem>
+                    <SelectItem value="Production">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-2">
+              <Label className="text-base">Permissions</Label>
+              <p className="text-sm text-muted-foreground">Select which actions this user can perform</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                {availablePermissions.map(permission => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <SwitchComponent 
+                      id={`new-perm-${permission.id}`} 
+                      checked={newUser.permissions?.includes(permission.id)}
+                      onCheckedChange={() => toggleNewUserPermission(permission.id)}
+                    />
+                    <div>
+                      <Label htmlFor={`new-perm-${permission.id}`} className="text-sm font-medium">
+                        {permission.name}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">{permission.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewUserDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddUser}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add User
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

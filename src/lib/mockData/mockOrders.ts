@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { MockTimestamp } from './mockTimestamp';
 import { 
@@ -378,9 +379,10 @@ export const updateOrder = async (orderId: string, orderData: any): Promise<Mock
 };
 
 export const updateOrderStatus = async (orderId: string, status: OrderStatus, note: string = ""): Promise<void> => {
-  const order = findOrderById(orderId);
+  const orderIndex = mockOrders.findIndex(order => order.id === orderId);
   
-  if (order) {
+  if (orderIndex >= 0) {
+    const order = mockOrders[orderIndex];
     const timeline = [...(order.timeline || [])];
     
     timeline.push({
@@ -389,9 +391,12 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus, no
       note: note || `Status updated to ${status}`
     });
     
-    order.status = status;
-    order.updatedAt = MockTimestamp.now();
-    order.timeline = timeline;
+    mockOrders[orderIndex] = {
+      ...order,
+      status,
+      updatedAt: MockTimestamp.now(),
+      timeline
+    };
     
     // Notify listeners
     notifyOrderListeners();
@@ -488,6 +493,102 @@ export const getOrdersForBulkOperations = async (status?: string): Promise<Order
   return [...mockOrders];
 };
 
+// Function to assign order to department and update status
+export const assignOrderToDepartment = async (orderId: string, department: DepartmentType, newStatus: OrderStatus): Promise<void> => {
+  const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+  
+  if (orderIndex >= 0) {
+    const order = mockOrders[orderIndex];
+    const timeline = [...(order.timeline || [])];
+    
+    timeline.push({
+      status: newStatus,
+      date: MockTimestamp.now(),
+      note: `Order assigned to ${department} department`
+    });
+    
+    mockOrders[orderIndex] = {
+      ...order,
+      assignedDept: department,
+      status: newStatus,
+      updatedAt: MockTimestamp.now(),
+      timeline
+    };
+    
+    // Notify listeners
+    notifyOrderListeners();
+  }
+};
+
+// Function to update product status in an order
+export const updateProductStatus = async (
+  orderId: string, 
+  productId: string, 
+  statusType: "designStatus" | "prepressStatus" | "productionStatus",
+  newStatus: string
+): Promise<void> => {
+  const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+  
+  if (orderIndex >= 0) {
+    const order = mockOrders[orderIndex];
+    const products = [...order.products];
+    
+    const productIndex = products.findIndex(product => product.id === productId);
+    
+    if (productIndex >= 0) {
+      products[productIndex] = {
+        ...products[productIndex],
+        [statusType]: newStatus
+      };
+      
+      mockOrders[orderIndex] = {
+        ...order,
+        products,
+        updatedAt: MockTimestamp.now()
+      };
+      
+      // Add timeline entry
+      const timeline = [...(order.timeline || [])];
+      timeline.push({
+        status: `Product_${statusType.replace('Status', '')}`,
+        date: MockTimestamp.now(),
+        note: `Product "${products[productIndex].name}" ${statusType.replace('Status', '')} status updated to ${newStatus}`
+      });
+      
+      mockOrders[orderIndex].timeline = timeline;
+      
+      // Notify listeners
+      notifyOrderListeners();
+    }
+  }
+};
+
+// Update payment status
+export const updatePaymentStatus = async (orderId: string, paymentStatus: string, note: string = ""): Promise<void> => {
+  const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+  
+  if (orderIndex >= 0) {
+    const order = mockOrders[orderIndex];
+    const timeline = [...(order.timeline || [])];
+    
+    timeline.push({
+      status: `Payment_${paymentStatus}`,
+      date: MockTimestamp.now(),
+      note: note || `Payment status updated to ${paymentStatus}`
+    });
+    
+    mockOrders[orderIndex] = {
+      ...order,
+      paymentStatus,
+      updatedAt: MockTimestamp.now(),
+      timeline
+    };
+    
+    // Notify listeners
+    notifyOrderListeners();
+  }
+};
+
 // Mock write batch
 export const createWriteBatch = (): MockWriteBatch => {
   const batch: { operations: Array<{ type: string; ref: MockDocumentReference; data?: any }> } = {
@@ -522,6 +623,23 @@ export const createWriteBatch = (): MockWriteBatch => {
               updatedAt: MockTimestamp.now()
             };
           }
+        } else if (op.type === 'set' && op.ref.path.startsWith('orders/')) {
+          const orderId = op.ref.id;
+          const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+          if (orderIndex >= 0) {
+            mockOrders[orderIndex] = {
+              ...op.data,
+              id: orderId,
+              updatedAt: MockTimestamp.now()
+            };
+          } else {
+            mockOrders.push({
+              ...op.data,
+              id: orderId,
+              createdAt: MockTimestamp.now(),
+              updatedAt: MockTimestamp.now()
+            });
+          }
         }
       }
       
@@ -543,8 +661,16 @@ const notifyOrderListeners = () => {
       if (listener.query.collection === 'orders') {
         if (listener.query.where) {
           const { field, value } = listener.query.where;
-          const filteredOrders = mockOrders.filter(order => order[field as keyof Order] === value);
+          const filteredOrders = mockOrders.filter(order => {
+            // Handle field access to avoid undefined errors
+            const orderField = order[field as keyof Order];
+            return orderField === value;
+          });
           listener.callback(filteredOrders);
+        } else if (listener.query.doc) {
+          const orderId = listener.query.doc;
+          const order = findOrderById(orderId);
+          listener.callback(order ? [order] : []);
         } else {
           listener.callback([...mockOrders]);
         }
@@ -587,12 +713,12 @@ export const mockQuery = <T>(
   };
 };
 
-// Mock collection function
+// Create a mock collection function
 export const mockCollection = (path: string) => {
   return path;
 };
 
-// Mock document function
+// Create a mock document function
 export const mockDoc = (collection: any, id: string) => {
   return { id, path: `${collection}/${id}` };
 };
@@ -607,4 +733,12 @@ export const mockGetDocs = async <T>(query: any): Promise<MockQuerySnapshot<T>> 
     docs: [],
     forEach: () => {}
   };
+};
+
+// Export additional helper functions for easier order workflow testing
+export { 
+  findOrderById, 
+  createDocRef,
+  createDocSnapshot,
+  updateProductStatus
 };

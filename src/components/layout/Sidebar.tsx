@@ -1,13 +1,26 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar as SidebarComponent } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
-import { LayoutDashboard, FileText, CheckCircle, Users, BarChart2, Settings, Building2, User, ShieldAlert } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  FileText, 
+  CheckCircle, 
+  Users, 
+  BarChart2, 
+  Settings, 
+  Building2, 
+  User, 
+  ShieldAlert, 
+  Inbox,
+  Clock
+} from "lucide-react";
 import AdminAccessDropdown from "./AdminAccessDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 // Import logo images
 const logoFull = "/logo-full.png"; // Path to your full logo
@@ -23,16 +36,26 @@ const Sidebar = ({
   setCollapsed
 }: SidebarProps) => {
   const location = useLocation();
-  const {
-    currentUser
-  } = useAuth();
-  const [userRole, setUserRole] = useState<string>("admin"); // Mock role - would come from auth context
+  const { currentUser } = useAuth();
+  const [userRole, setUserRole] = useState<string>("admin"); // Will come from auth context
+  const [pendingTasks, setPendingTasks] = useState<number>(5); // Mock data - would come from API
+
+  // Get user role from auth context
+  useEffect(() => {
+    if (currentUser && currentUser.role) {
+      setUserRole(currentUser.role);
+    }
+  }, [currentUser]);
 
   // Check if the current path matches the given path
   const isActive = (path: string) => location.pathname === path;
+  
+  // Check if path starts with the given prefix
+  const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
 
   // Check if admin
   const isAdmin = userRole === "admin";
+  const isSales = userRole === "sales" || userRole === "admin";
 
   // Department-specific colors
   const getDeptColor = (dept: string) => {
@@ -79,28 +102,56 @@ const Sidebar = ({
           <ul className="space-y-1">
             {/* Dashboard */}
             <li>
-              <Link to="/dashboard" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
+              <Link to="/dashboard" className={cn("flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors", 
                 isActive("/dashboard") 
                   ? "bg-secondary text-secondary-foreground" 
                   : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
-                <LayoutDashboard className="mr-2 h-5 w-5" />
-                {!collapsed && <span>Dashboard</span>}
+                <div className="flex items-center">
+                  <LayoutDashboard className="mr-2 h-5 w-5" />
+                  {!collapsed && <span>Dashboard</span>}
+                </div>
               </Link>
             </li>
 
-            {/* Orders */}
+            {/* Orders with badge showing new orders */}
             <li>
-              <Link to="/orders" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
-                isActive("/orders") 
+              <Link to="/orders" className={cn("flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors", 
+                isActivePrefix("/order") 
                   ? "bg-secondary text-secondary-foreground" 
                   : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
-                <FileText className="mr-2 h-5 w-5" />
-                {!collapsed && <span>Orders</span>}
+                <div className="flex items-center">
+                  <FileText className="mr-2 h-5 w-5" />
+                  {!collapsed && <span>Orders</span>}
+                </div>
+                {pendingTasks > 0 && !collapsed && (
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingTasks}
+                  </Badge>
+                )}
               </Link>
             </li>
 
-            {/* Approvals */}
-            {(userRole === "admin" || userRole === "sales") && <li>
+            {/* Tasks */}
+            <li>
+              <Link to="/tasks" className={cn("flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors", 
+                isActive("/tasks") 
+                  ? "bg-secondary text-secondary-foreground" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                <div className="flex items-center">
+                  <Clock className="mr-2 h-5 w-5" />
+                  {!collapsed && <span>Tasks</span>}
+                </div>
+                {pendingTasks > 0 && !collapsed && (
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingTasks}
+                  </Badge>
+                )}
+              </Link>
+            </li>
+
+            {/* Approvals - for admin and sales only */}
+            {isSales && (
+              <li>
                 <Link to="/approvals" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
                   isActive("/approvals") 
                     ? "bg-secondary text-secondary-foreground" 
@@ -108,18 +159,8 @@ const Sidebar = ({
                   <CheckCircle className="mr-2 h-5 w-5" />
                   {!collapsed && <span>Approvals</span>}
                 </Link>
-              </li>}
-
-            {/* Tasks */}
-            <li>
-              <Link to="/tasks" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
-                isActive("/tasks") 
-                  ? "bg-secondary text-secondary-foreground" 
-                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
-                <CheckCircle className="mr-2 h-5 w-5" />
-                {!collapsed && <span>Tasks</span>}
-              </Link>
-            </li>
+              </li>
+            )}
 
             {/* Analytics */}
             <li>
@@ -185,7 +226,8 @@ const Sidebar = ({
             )}
 
             {/* Admin section */}
-            {isAdmin && <>
+            {isAdmin && (
+              <>
                 <li className="pt-4">
                   {!collapsed && <div className="mb-2 px-3">
                       <p className="text-xs font-medium text-muted-foreground">
@@ -230,14 +272,15 @@ const Sidebar = ({
                 {/* Admin Panel */}
                 <li>
                   <Link to="/admin/panel" className={cn("flex items-center rounded-md px-3 py-2 text-sm transition-colors", 
-                    isActive("/admin/panel") 
+                    isActivePrefix("/admin/panel") 
                       ? "bg-secondary text-secondary-foreground" 
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                     <ShieldAlert className="mr-2 h-5 w-5" />
                     {!collapsed && <span>Admin Panel</span>}
                   </Link>
                 </li>
-              </>}
+              </>
+            )}
 
             {/* Settings */}
             <li className="mt-auto pt-4">
@@ -266,7 +309,8 @@ const Sidebar = ({
         {/* Admin quick access dropdown */}
         {!collapsed && isAdmin && <AdminAccessDropdown />}
       </div>
-    </aside>;
+    </aside>
+  );
 };
 
 export default Sidebar;
