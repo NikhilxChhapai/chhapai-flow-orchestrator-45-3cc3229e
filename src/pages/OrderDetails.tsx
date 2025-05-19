@@ -22,7 +22,7 @@ import OrderPayment from "@/components/orders/OrderPayment";
 import OrderNotes from "@/components/orders/OrderNotes";
 
 import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus, updateOrder } from "@/lib/mockData";
-import { Order, OrderStatus, DepartmentType } from "@/lib/firebase/types";
+import { Order, OrderStatus, DepartmentType, PaymentStatus, TimelineEvent } from "@/lib/firebase/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 const OrderDetails = () => {
@@ -187,7 +187,7 @@ const OrderDetails = () => {
   };
   
   // Handle payment status update
-  const handlePaymentStatusUpdate = async (status: string) => {
+  const handlePaymentStatusUpdate = async (status: PaymentStatus) => {
     if (!order || !orderId) return;
     
     setUpdatingStatus(true);
@@ -318,7 +318,10 @@ const OrderDetails = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label>Select Department</Label>
-                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <Select 
+                      value={selectedDepartment} 
+                      onValueChange={(value: DepartmentType | "") => setSelectedDepartment(value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Choose department" />
                       </SelectTrigger>
@@ -374,13 +377,12 @@ const OrderDetails = () => {
               <div className="md:col-span-2 space-y-6">
                 <OrderHeader 
                   clientName={order.clientName} 
-                  gstNumber={order.gstNumber} 
-                  contactNumber={order.contactNumber} 
                 />
                 
                 <OrderDelivery 
                   deliveryDate={order.deliveryDate ? new Date(order.deliveryDate.seconds * 1000).toLocaleDateString() : "Not specified"} 
                   deliveryAddress={order.deliveryAddress} 
+                  contactNumber={order.contactNumber}
                 />
                 
                 <OrderNotes remarks={order.remarks} />
@@ -401,9 +403,6 @@ const OrderDetails = () => {
                 
                 <OrderPayment 
                   paymentStatus={order.paymentStatus || "unpaid"} 
-                  onUpdatePaymentStatus={handlePaymentStatusUpdate}
-                  canUpdatePayment={hasPermission("update_payment")}
-                  updating={updatingStatus}
                 />
               </div>
             </div>
@@ -426,7 +425,6 @@ const OrderDetails = () => {
                   products={order.products} 
                   orderId={order.id} 
                   department={order.assignedDept}
-                  status={order.status}
                 />
               </CardContent>
             </Card>
@@ -434,7 +432,13 @@ const OrderDetails = () => {
           
           {/* Timeline Tab */}
           <TabsContent value="timeline">
-            <OrderTimeline timeline={order.timeline || []} formatStatus={formatStatus} />
+            <OrderTimeline 
+              timeline={order.timeline?.map(event => ({
+                ...event,
+                formattedDate: new Date(event.date.seconds * 1000).toLocaleString()
+              })) || []} 
+              formatStatus={formatStatus} 
+            />
           </TabsContent>
         </div>
       </Tabs>

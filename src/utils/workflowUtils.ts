@@ -1,157 +1,85 @@
 
-import { OrderStatus, DepartmentType, DesignStatus, PrepressStatus, ProductionStatus } from "@/lib/firebase/types";
+import { OrderStatus } from "@/lib/firebase/types";
 
-// Helper function to determine the appropriate department based on order status
-export const getDepartmentFromStatus = (status: OrderStatus): DepartmentType => {
-  if (status.startsWith("Design_")) {
-    return "design";
-  } else if (status.startsWith("Prepress_")) {
-    return "prepress";
-  } else if (status.startsWith("Production_")) {
-    return "production";
-  } else {
-    return "sales"; // Default to sales for other statuses
-  }
+// Determine if the current status is a design status
+export const isDesignStatus = (status: OrderStatus): boolean => {
+  return status.startsWith('Design_');
 };
 
-// Helper function to determine the appropriate status based on department assignment
-export const getStatusFromDepartment = (department: DepartmentType): OrderStatus => {
-  switch (department) {
-    case "design":
-      return "Design_InProgress";
-    case "prepress":
-      return "Prepress_InProgress";
-    case "production":
-      return "Production_Printing";
-    default:
-      return "Order_Received"; // Default status
-  }
+// Determine if the current status is a prepress status
+export const isPrepressStatus = (status: OrderStatus): boolean => {
+  return status.startsWith('Prepress_');
 };
 
-// Format status for display
-export const formatOrderStatus = (status: string): string => {
+// Determine if the current status is a production status
+export const isProductionStatus = (status: OrderStatus): boolean => {
+  return status.startsWith('Production_');
+};
+
+// Get next stage in the workflow based on current status
+export const getNextWorkflowStage = (currentStatus: OrderStatus): OrderStatus => {
+  // Order received flow
+  if (currentStatus === 'Order_Received') {
+    return 'Design_InProgress';
+  }
+  
+  // Design flow
+  if (currentStatus === 'Design_InProgress') {
+    return 'Design_PendingApproval';
+  }
+  if (currentStatus === 'Design_PendingApproval') {
+    return 'Design_InProgress'; // Back to design if changes requested
+  }
+  if (currentStatus === 'Design_InProgress' && isDesignApproved()) {
+    return 'Prepress_InProgress';
+  }
+  
+  // Prepress flow
+  if (currentStatus === 'Prepress_InProgress') {
+    return 'Prepress_PendingApproval';
+  }
+  if (currentStatus === 'Prepress_PendingApproval') {
+    return 'Prepress_InProgress'; // Back to prepress if changes requested
+  }
+  if (currentStatus === 'Prepress_InProgress' && isPrepressApproved()) {
+    return 'Production_Printing';
+  }
+  
+  // Production flow
+  if (currentStatus === 'Production_Printing') {
+    return 'Production_Finishing';
+  }
+  if (currentStatus === 'Production_Finishing') {
+    return 'ReadyToDispatch';
+  }
+  if (currentStatus === 'ReadyToDispatch') {
+    return 'Completed';
+  }
+  
+  // Default: stay in current status
+  return currentStatus;
+};
+
+// Helper function to check if design is approved across all products
+// This would typically check if all products have designStatus === 'approved'
+const isDesignApproved = (): boolean => {
+  return false; // In a real implementation, you'd check all products
+};
+
+// Helper function to check if prepress is approved across all products
+// This would typically check if all products have prepressStatus === 'approved'
+const isPrepressApproved = (): boolean => {
+  return false; // In a real implementation, you'd check all products
+};
+
+// Get status label for display
+export const getStatusLabel = (status: OrderStatus): string => {
   return status
-    .replace(/_/g, " ")
-    .split(" ")
+    .replace(/_/g, ' ')
+    .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .join(' ');
 };
 
-// Get badge color based on status
-export const getStatusBadgeColor = (status: string): string => {
-  if (status.startsWith("Order_")) return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-  if (status.startsWith("Design_")) return "bg-indigo-100 text-indigo-800 hover:bg-indigo-200";
-  if (status.startsWith("Prepress_")) return "bg-purple-100 text-purple-800 hover:bg-purple-200";
-  if (status.startsWith("Production_")) return "bg-amber-100 text-amber-800 hover:bg-amber-200";
-  if (status === "ReadyToDispatch") return "bg-green-100 text-green-800 hover:bg-green-200";
-  if (status === "Completed") return "bg-gray-100 text-gray-800 hover:bg-gray-200";
-  return "bg-gray-100 text-gray-800 hover:bg-gray-200";
-};
-
-// Get next status in workflow
-export const getNextStatus = (currentStatus: OrderStatus): OrderStatus | null => {
-  switch (currentStatus) {
-    case "Order_Received":
-      return "Design_InProgress";
-    case "Design_InProgress":
-      return "Design_Approved";
-    case "Design_Approved":
-      return "Prepress_InProgress";
-    case "Prepress_InProgress":
-      return "Prepress_Approved";
-    case "Prepress_Approved":
-      return "Production_Printing";
-    case "Production_Printing":
-      return "ReadyToDispatch";
-    case "ReadyToDispatch":
-      return "Completed";
-    default:
-      return null;
-  }
-};
-
-// Get product status display information
-export const getProductStatusInfo = (
-  type: "design" | "prepress" | "production",
-  status?: DesignStatus | PrepressStatus | ProductionStatus
-): { label: string; color: string } => {
-  if (!status) {
-    return { label: "Not Started", color: "bg-gray-100 text-gray-800" };
-  }
-  
-  switch (type) {
-    case "design":
-      switch (status) {
-        case "pending":
-          return { label: "Pending", color: "bg-blue-100 text-blue-800" };
-        case "pendingApproval":
-          return { label: "Waiting Approval", color: "bg-amber-100 text-amber-800" };
-        case "approved":
-          return { label: "Approved", color: "bg-green-100 text-green-800" };
-        case "needsRevision":
-          return { label: "Needs Revision", color: "bg-red-100 text-red-800" };
-        default:
-          return { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-      }
-    case "prepress":
-      switch (status) {
-        case "pending":
-          return { label: "Pending", color: "bg-blue-100 text-blue-800" };
-        case "pendingApproval":
-          return { label: "Waiting Approval", color: "bg-amber-100 text-amber-800" };
-        case "approved":
-          return { label: "Approved", color: "bg-green-100 text-green-800" };
-        case "needsRevision":
-          return { label: "Needs Revision", color: "bg-red-100 text-red-800" };
-        default:
-          return { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-      }
-    case "production":
-      switch (status) {
-        case "inProcess":
-          return { label: "In Process", color: "bg-blue-100 text-blue-800" };
-        case "readyToDispatch":
-          return { label: "Ready for Dispatch", color: "bg-amber-100 text-amber-800" };
-        case "complete":
-          return { label: "Completed", color: "bg-green-100 text-green-800" };
-        default:
-          return { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-      }
-    default:
-      return { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-  }
-};
-
-// Check if user has permission for specific action
-export const checkPermission = (
-  userRole: string, 
-  userDepartment: string,
-  orderDepartment: string | undefined,
-  permission: string
-): boolean => {
-  // Admin has all permissions
-  if (userRole === "admin") return true;
-  
-  // Sales has many permissions
-  if (userRole === "sales") {
-    if (["view_all_orders", "create_orders", "edit_orders", "approve_designs", "approve_prepress"].includes(permission)) {
-      return true;
-    }
-  }
-  
-  // Department-specific permissions
-  if (userDepartment === orderDepartment) {
-    switch (userRole) {
-      case "design":
-        return ["view_department_orders", "update_design_status"].includes(permission);
-      case "prepress":
-        return ["view_department_orders", "update_prepress_status"].includes(permission);
-      case "production":
-        return ["view_department_orders", "update_production_status"].includes(permission);
-      default:
-        return false;
-    }
-  }
-  
-  return false;
-};
+// Extend the OrderStatus type in the future for more status types
+// For now, the enum in types.ts contains all valid statuses

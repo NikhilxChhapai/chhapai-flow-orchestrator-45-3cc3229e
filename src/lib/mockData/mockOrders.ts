@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { MockTimestamp } from './mockTimestamp';
 import { 
@@ -11,7 +10,8 @@ import {
   MockDocumentReference,
   MockDocumentSnapshot,
   MockQuerySnapshot,
-  MockWriteBatch
+  MockWriteBatch,
+  PaymentStatus
 } from './mockTypes';
 
 // Mock orders data with realistic sample orders
@@ -564,7 +564,7 @@ export const updateProductStatus = async (
 };
 
 // Update payment status
-export const updatePaymentStatus = async (orderId: string, paymentStatus: string, note: string = ""): Promise<void> => {
+export const updatePaymentStatus = async (orderId: string, paymentStatus: PaymentStatus, note: string = ""): Promise<void> => {
   const orderIndex = mockOrders.findIndex(order => order.id === orderId);
   
   if (orderIndex >= 0) {
