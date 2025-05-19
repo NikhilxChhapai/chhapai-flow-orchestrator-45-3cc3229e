@@ -1,3 +1,4 @@
+
 // Main exports for the mock Firebase implementation
 import { v4 as uuidv4 } from 'uuid';
 import { MockTimestamp } from './mockTimestamp';
@@ -15,7 +16,9 @@ import {
   mockQuery,
   mockCollection,
   mockDoc,
-  mockGetDocs
+  mockGetDocs,
+  getOrderWithRealTimeUpdates,
+  updateProductStatus
 } from './mockOrders';
 import { ref, uploadBytes, getDownloadURL } from './mockStorage';
 

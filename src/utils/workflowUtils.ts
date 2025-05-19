@@ -12,18 +12,18 @@ export const canUserUpdateOrderStatus = (user: User | null, order: Order): boole
   if (user.department === order.assignedDept) {
     // They can only request approval or mark work as completed
     if (user.department === 'design' && 
-        (order.status === 'Design_InProgress' as OrderStatus)) {
+        (order.status === 'Design_InProgress')) {
       return true;
     }
     
     if (user.department === 'prepress' && 
-        (order.status === 'Prepress_InProgress' as OrderStatus)) {
+        (order.status === 'Prepress_InProgress')) {
       return true;
     }
     
     if (user.department === 'production' && 
-        (order.status === 'Production_Printing' as OrderStatus || 
-         order.status === 'Production_Finishing' as OrderStatus)) {
+        (order.status === 'Production_Printing' || 
+         order.status === 'Production_Finishing')) {
       return true;
     }
   }

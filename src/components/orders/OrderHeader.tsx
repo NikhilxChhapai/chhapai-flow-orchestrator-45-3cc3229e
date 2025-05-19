@@ -9,11 +9,21 @@ interface OrderHeaderProps {
   orderNumber: string;
   clientName: string;
   orderId: string;
-  onEdit: () => void;
-  onPrint: () => void;
+  onEdit?: () => void;
+  onPrint?: () => void;
+  gstNumber?: string;
+  contactNumber?: string;
 }
 
-const OrderHeader = ({ orderNumber, clientName, orderId, onEdit, onPrint }: OrderHeaderProps) => {
+const OrderHeader = ({ 
+  orderNumber, 
+  clientName, 
+  orderId, 
+  onEdit = () => {}, 
+  onPrint = () => {},
+  gstNumber,
+  contactNumber
+}: OrderHeaderProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -41,6 +51,8 @@ const OrderHeader = ({ orderNumber, clientName, orderId, onEdit, onPrint }: Orde
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Order #{orderNumber}</h1>
           <p className="text-muted-foreground">{clientName}</p>
+          {gstNumber && <p className="text-sm text-muted-foreground">GST: {gstNumber}</p>}
+          {contactNumber && <p className="text-sm text-muted-foreground">Contact: {contactNumber}</p>}
         </div>
       </div>
       

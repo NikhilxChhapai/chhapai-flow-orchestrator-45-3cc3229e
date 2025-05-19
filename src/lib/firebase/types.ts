@@ -5,7 +5,7 @@ import { Timestamp } from "firebase/firestore";
 export type UserRole = 'admin' | 'manager' | 'sales' | 'design' | 'prepress' | 'production';
 
 // Department types
-export type DepartmentType = 'sales' | 'design' | 'prepress' | 'production';
+export type DepartmentType = 'sales' | 'design' | 'prepress' | 'production' | 'admin';
 
 // Product status types
 export type ProductStatus = 'pending' | 'inProgress' | 'approved' | 'rejected' | 'completed';
@@ -53,7 +53,7 @@ export type OrderStatus =
 
 // Order product type
 export interface OrderProduct {
-  id: string;
+  id?: string;
   name: string;
   quantity: number;
   price: number;
@@ -96,9 +96,10 @@ export interface Order {
   orderAmount: number;
   status: OrderStatus;
   createdAt: any; // Timestamp
-  updatedAt: any; // Timestamp
+  updatedAt?: any; // Timestamp
   createdBy: string;
-  createdByName: string;
+  createdByName?: string;
+  updatedBy?: string;
   assignedDept: DepartmentType;
   paymentStatus: PaymentStatus;
   deliveryDate?: any; // Timestamp

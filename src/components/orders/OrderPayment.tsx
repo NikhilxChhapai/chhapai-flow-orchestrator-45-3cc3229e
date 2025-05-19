@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { updatePaymentStatus, PaymentStatus } from "@/lib/firebase";
+import { PaymentStatus } from "@/lib/firebase/types";
 import { Loader2, DollarSign } from "lucide-react";
 
 interface OrderPaymentProps {
@@ -21,16 +21,22 @@ interface OrderPaymentProps {
   orderAmount: number;
   paymentStatus: PaymentStatus;
   canEditPayment?: boolean;
+  canUpdatePayment?: boolean;
+  updating?: boolean;
+  onUpdatePaymentStatus?: (status: PaymentStatus) => Promise<void>;
 }
 
 const OrderPayment = ({ 
   orderId, 
   orderAmount, 
   paymentStatus,
-  canEditPayment = false 
+  canEditPayment = false,
+  canUpdatePayment = false,
+  updating = false,
+  onUpdatePaymentStatus
 }: OrderPaymentProps) => {
   const { toast } = useToast();
-  const [updating, setUpdating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(updating);
   const [receivedAmount, setReceivedAmount] = useState<number>(
     paymentStatus === "paid" ? orderAmount : 
     paymentStatus === "pending" ? orderAmount * 0.5 : 0
@@ -54,17 +60,11 @@ const OrderPayment = ({
   };
 
   const handleUpdatePayment = async () => {
-    if (!orderId) return;
+    if (!orderId || !onUpdatePaymentStatus) return;
 
     try {
-      setUpdating(true);
-      const note = newPaymentStatus === "paid" 
-        ? "Payment completed" 
-        : newPaymentStatus === "pending" 
-          ? `Partial payment received: ${receivedAmount}`
-          : "Payment status updated";
-
-      await updatePaymentStatus(orderId, newPaymentStatus, note);
+      setIsUpdating(true);
+      await onUpdatePaymentStatus(newPaymentStatus);
       
       toast({
         title: "Payment Updated",
@@ -78,7 +78,7 @@ const OrderPayment = ({
         variant: "destructive",
       });
     } finally {
-      setUpdating(false);
+      setIsUpdating(false);
     }
   };
 
@@ -122,7 +122,7 @@ const OrderPayment = ({
           </div>
         </div>
 
-        {canEditPayment && (
+        {(canUpdatePayment || canEditPayment) && (
           <div className="border-t pt-4 mt-4">
             <h4 className="font-medium mb-2">Update Payment</h4>
             <div className="space-y-3">
@@ -167,14 +167,14 @@ const OrderPayment = ({
         )}
       </CardContent>
 
-      {canEditPayment && (
+      {(canUpdatePayment || canEditPayment) && onUpdatePaymentStatus && (
         <CardFooter>
           <Button 
             onClick={handleUpdatePayment} 
-            disabled={updating || paymentStatus === newPaymentStatus}
+            disabled={isUpdating || paymentStatus === newPaymentStatus}
             className="w-full"
           >
-            {updating ? (
+            {isUpdating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Updating...

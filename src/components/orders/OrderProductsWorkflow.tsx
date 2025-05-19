@@ -1,731 +1,260 @@
 
-import React, { useState } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription,
-  CardFooter
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/tabs";
+import { useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  updateProductDesignStatus, 
-  updateProductPrepressStatus,
-  updateProductionStatus,
-  OrderStatus, 
-  DesignStatus, 
-  PrepressStatus,
-  ProductionStatus,
-} from "@/lib/firebase";
-import { 
-  Pen, 
-  File, 
-  Truck, 
-  Send, 
-  RefreshCw, 
-  CheckCircle2, 
-  X,
-  Loader2
-} from "lucide-react";
-
-interface Product {
-  id?: string;
-  name: string;
-  quantity?: number;
-  price?: number;
-  description?: string;
-  designStatus?: string;
-  prepressStatus?: string;
-  productionStatus?: string;
-  productionStages?: {
-    printing?: boolean;
-    cutting?: boolean;
-    foiling?: boolean;
-    [key: string]: boolean | undefined;
-  };
-}
+import { OrderProduct, DepartmentType, OrderStatus } from "@/lib/firebase/types";
+import { updateProductStatus } from "@/lib/mockData";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
 interface OrderProductsWorkflowProps {
+  products: OrderProduct[];
   orderId: string;
-  products: Product[];
-  department: "design" | "prepress" | "production" | "sales" | "admin";
-  onRefresh?: () => void;
+  department: DepartmentType;
+  status?: OrderStatus;
 }
 
-const OrderProductsWorkflow = ({ 
-  orderId, 
-  products, 
-  department, 
-  onRefresh 
-}: OrderProductsWorkflowProps) => {
+const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderProductsWorkflowProps) => {
   const { toast } = useToast();
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedProductIndex, setSelectedProductIndex] = useState<number>(-1);
-  const [activeTab, setActiveTab] = useState("design");
-  const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const [approvalStatus, setApprovalStatus] = useState<"approved" | "rejected">("approved");
+  const [updating, setUpdating] = useState<Record<string, boolean>>({});
   
-  // Design-specific state
-  const [designStatus, setDesignStatus] = useState<DesignStatus>("pending");
-  
-  // Prepress-specific state
-  const [prepressStatus, setPrepressStatus] = useState<PrepressStatus>("pending");
-  
-  // Production-specific state
-  const [productionStatus, setProductionStatus] = useState<ProductionStatus>("inProcess");
-  const [productionStages, setProductionStages] = useState({
-    printing: false,
-    cutting: false,
-    foiling: false,
-    packaging: false,
-  });
-  
-  const handleSelectProduct = (product: Product, index: number) => {
-    setSelectedProduct(product);
-    setSelectedProductIndex(index);
-    
-    // Set initial values based on product status
-    if (product.designStatus) {
-      setDesignStatus(product.designStatus as DesignStatus);
-    }
-    
-    if (product.prepressStatus) {
-      setPrepressStatus(product.prepressStatus as PrepressStatus);
-    }
-    
-    if (product.productionStatus) {
-      setProductionStatus(product.productionStatus as ProductionStatus);
-    }
-    
-    if (product.productionStages) {
-      setProductionStages({
-        ...productionStages,
-        ...product.productionStages
-      });
+  // Define appropriate status options based on department
+  const getStatusOptions = (department: DepartmentType) => {
+    switch (department) {
+      case "design":
+        return [
+          { value: "pending", label: "Pending" },
+          { value: "pendingApproval", label: "Send for Approval" },
+          { value: "approved", label: "Approved" },
+          { value: "needsRevision", label: "Needs Revision" }
+        ];
+      case "prepress":
+        return [
+          { value: "pending", label: "Pending" },
+          { value: "pendingApproval", label: "Send for Approval" },
+          { value: "approved", label: "Approved" },
+          { value: "needsRevision", label: "Needs Revision" }
+        ];
+      case "production":
+        return [
+          { value: "inProcess", label: "In Process" },
+          { value: "readyToDispatch", label: "Ready to Dispatch" },
+          { value: "complete", label: "Complete" }
+        ];
+      default:
+        return [];
     }
   };
   
-  const handleUpdateDesignStatus = async () => {
-    if (!selectedProduct || selectedProductIndex === -1) return;
+  // Get status field name based on department
+  const getStatusField = (department: DepartmentType): "designStatus" | "prepressStatus" | "productionStatus" => {
+    switch (department) {
+      case "design":
+        return "designStatus";
+      case "prepress":
+        return "prepressStatus";
+      case "production":
+        return "productionStatus";
+      default:
+        return "designStatus"; // Default fallback
+    }
+  };
+  
+  // Handle status change for a product
+  const handleStatusChange = async (productId: string | undefined, newStatus: string) => {
+    if (!productId || !orderId) return;
     
-    setLoading(true);
+    setUpdating({ ...updating, [productId]: true });
+    
     try {
-      await updateProductDesignStatus(
-        orderId,
-        selectedProductIndex,
-        designStatus,
-        `Design status updated to ${designStatus} for product: ${selectedProduct.name}`
-      );
+      const statusField = getStatusField(department);
+      await updateProductStatus(orderId, productId, statusField, newStatus);
       
       toast({
         title: "Status Updated",
-        description: `Design status for ${selectedProduct.name} has been updated.`,
+        description: `Product status has been updated to ${newStatus}.`
       });
-      
-      if (onRefresh) onRefresh();
-      setSelectedProduct(null);
-      setSelectedProductIndex(-1);
     } catch (error) {
-      console.error("Error updating design status:", error);
+      console.error("Error updating product status:", error);
       toast({
         title: "Error",
-        description: "Failed to update design status. Please try again.",
-        variant: "destructive",
+        description: "Failed to update product status.",
+        variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setUpdating({ ...updating, [productId]: false });
     }
   };
   
-  const handleUpdatePrepressStatus = async () => {
-    if (!selectedProduct || selectedProductIndex === -1) return;
+  // Handle production stage toggle
+  const handleStageToggle = async (productId: string | undefined, stage: string, checked: boolean) => {
+    if (!productId || !orderId) return;
     
-    setLoading(true);
-    try {
-      await updateProductPrepressStatus(
-        orderId,
-        selectedProductIndex,
-        prepressStatus,
-        `Prepress status updated to ${prepressStatus} for product: ${selectedProduct.name}`
-      );
-      
-      toast({
-        title: "Status Updated",
-        description: `Prepress status for ${selectedProduct.name} has been updated.`,
-      });
-      
-      if (onRefresh) onRefresh();
-      setSelectedProduct(null);
-      setSelectedProductIndex(-1);
-    } catch (error) {
-      console.error("Error updating prepress status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update prepress status. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleUpdateProductionStage = async (stage: string, completed: boolean) => {
-    if (!selectedProduct || selectedProductIndex === -1) return;
+    setUpdating({ ...updating, [productId]: true });
     
-    setLoading(true);
     try {
-      await updateProductionStatus(
-        orderId,
-        selectedProductIndex,
-        productionStatus,
-        stage,
-        `Production stage "${stage}" ${completed ? "completed" : "marked incomplete"} for product: ${selectedProduct.name}`
-      );
+      // In a real app, this would update the product stages
+      console.log(`Toggling stage ${stage} to ${checked} for product ${productId}`);
       
       toast({
-        title: "Production Updated",
-        description: `${stage} stage for ${selectedProduct.name} has been updated.`,
+        title: "Stage Updated",
+        description: `${stage} stage has been ${checked ? "completed" : "unmarked"}.`
       });
-      
-      setProductionStages({
-        ...productionStages,
-        [stage]: completed
-      });
-      
-      if (onRefresh) onRefresh();
     } catch (error) {
-      console.error("Error updating production stage:", error);
+      console.error("Error updating product stage:", error);
       toast({
         title: "Error",
-        description: "Failed to update production stage. Please try again.",
-        variant: "destructive",
+        description: "Failed to update production stage.",
+        variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setUpdating({ ...updating, [productId]: false });
     }
   };
   
-  const handleUpdateProductionStatus = async () => {
-    if (!selectedProduct || selectedProductIndex === -1) return;
+  // Format status display
+  const formatStatus = (status: string | undefined): string => {
+    if (!status) return "Not Set";
     
-    setLoading(true);
-    try {
-      await updateProductionStatus(
-        orderId,
-        selectedProductIndex,
-        productionStatus,
-        undefined,
-        `Production status updated to ${productionStatus} for product: ${selectedProduct.name}`
-      );
-      
-      toast({
-        title: "Status Updated",
-        description: `Production status for ${selectedProduct.name} has been updated.`,
-      });
-      
-      if (onRefresh) onRefresh();
-      setSelectedProduct(null);
-      setSelectedProductIndex(-1);
-    } catch (error) {
-      console.error("Error updating production status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update production status. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleOpenApprovalDialog = () => {
-    setDialogOpen(true);
-  };
-  
-  const handleSubmitApproval = async () => {
-    if (!selectedProduct || selectedProductIndex === -1) return;
-    
-    setLoading(true);
-    try {
-      if (department === "design" || department === "admin" || department === "sales") {
-        const status = approvalStatus === "approved" ? "approved" : "needsRevision";
-        await updateProductDesignStatus(
-          orderId,
-          selectedProductIndex,
-          status as DesignStatus,
-          `Design ${approvalStatus}: ${feedback}`
-        );
-      }
-      
-      if (department === "prepress" || department === "admin" || department === "sales") {
-        const status = approvalStatus === "approved" ? "approved" : "needsRevision";
-        await updateProductPrepressStatus(
-          orderId,
-          selectedProductIndex,
-          status as PrepressStatus,
-          `Prepress ${approvalStatus}: ${feedback}`
-        );
-      }
-      
-      toast({
-        title: approvalStatus === "approved" ? "Approved" : "Rejected",
-        description: `${selectedProduct.name} has been ${approvalStatus}.`,
-      });
-      
-      if (onRefresh) onRefresh();
-      setSelectedProduct(null);
-      setSelectedProductIndex(-1);
-      setFeedback("");
-      setDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating approval status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update approval status. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Format status text
-  const formatStatus = (status?: string) => {
-    if (!status) return "Not Started";
     return status
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/_/g, ' ')
-      .trim();
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, str => str.toUpperCase());
   };
-
-  // Get status badge color
-  const getStatusColor = (status?: string) => {
-    if (!status) return "bg-gray-100 text-gray-700";
-    if (status.includes("approved") || status === "complete") return "bg-green-100 text-green-700";
-    if (status.includes("pending")) return "bg-yellow-100 text-yellow-700";
-    if (status.includes("revision")) return "bg-red-100 text-red-700";
-    if (status.includes("progress")) return "bg-blue-100 text-blue-700";
-    return "bg-gray-100 text-gray-700";
+  
+  // Get status indicator
+  const getStatusIndicator = (status: string | undefined) => {
+    if (!status) return null;
+    
+    switch (status) {
+      case "approved":
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "needsRevision":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case "pendingApproval":
+        return <Loader2 className="h-5 w-5 text-yellow-500" />;
+      default:
+        return null;
+    }
   };
+  
+  // Filter products based on department workflow
+  const relevantProducts = products.filter(product => {
+    // For sales, show all products
+    if (department === "sales") return true;
+    
+    // For design, only show products that haven't been approved yet
+    if (department === "design") {
+      return product.designStatus !== "approved";
+    }
+    
+    // For prepress, only show products with approved designs but not approved prepress
+    if (department === "prepress") {
+      return product.designStatus === "approved" && product.prepressStatus !== "approved";
+    }
+    
+    // For production, only show products with approved prepress
+    if (department === "production") {
+      return product.prepressStatus === "approved";
+    }
+    
+    return true;
+  });
 
+  // If no department, show message
+  if (!department) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">This order has not been assigned to a department yet.</p>
+      </div>
+    );
+  }
+  
+  // If no products, show message
+  if (products.length === 0 || relevantProducts.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">No products to display for this workflow.</p>
+      </div>
+    );
+  }
+
+  // Render workflow based on department
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Product Workflow</CardTitle>
-        <CardDescription>
-          Update status and track product workflow
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="border rounded-md p-4">
-            <h3 className="font-medium mb-2">Select Product</h3>
-            <div className="space-y-2">
-              {products.map((product, index) => (
-                <div 
-                  key={index}
-                  onClick={() => handleSelectProduct(product, index)}
-                  className={`p-3 border rounded-md cursor-pointer transition-colors ${
-                    selectedProductIndex === index 
-                      ? "border-primary bg-primary/10" 
-                      : "hover:bg-accent"
-                  }`}
-                >
-                  <div className="flex justify-between">
-                    <span className="font-medium">{product.name}</span>
-                    <span>{product.quantity || 1} units</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Design</span>
-                      <div className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${getStatusColor(product.designStatus)}`}>
-                        {formatStatus(product.designStatus)}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="text-xs text-muted-foreground">Prepress</span>
-                      <div className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${getStatusColor(product.prepressStatus)}`}>
-                        {formatStatus(product.prepressStatus)}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="text-xs text-muted-foreground">Production</span>
-                      <div className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${getStatusColor(product.productionStatus)}`}>
-                        {formatStatus(product.productionStatus)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            {selectedProduct ? (
-              <div>
-                <h3 className="font-medium mb-4">{selectedProduct.name} - Update Status</h3>
-                
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid grid-cols-3">
-                    <TabsTrigger value="design" disabled={!(department === "design" || department === "admin" || department === "sales")}>
-                      <Pen className="h-4 w-4 mr-2" />
-                      Design
-                    </TabsTrigger>
-                    <TabsTrigger value="prepress" disabled={!(department === "prepress" || department === "admin" || department === "sales")}>
-                      <File className="h-4 w-4 mr-2" />
-                      Prepress
-                    </TabsTrigger>
-                    <TabsTrigger value="production" disabled={!(department === "production" || department === "admin" || department === "sales")}>
-                      <Truck className="h-4 w-4 mr-2" />
-                      Production
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="design">
-                    {(department === "design") && (
-                      <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="designStatus">Status</Label>
-                          <Select 
-                            defaultValue={designStatus} 
-                            onValueChange={(value) => setDesignStatus(value as DesignStatus)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="inProgress">In Progress</SelectItem>
-                              <SelectItem value="pendingApproval">Request Approval</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button onClick={handleUpdateDesignStatus} disabled={loading}>
-                            {loading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Updating...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Update Status
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(department === "admin" || department === "sales") && (
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <Label>Current Status</Label>
-                          <div className={`text-sm px-2 py-1 mt-1 rounded inline-block ${getStatusColor(selectedProduct.designStatus)}`}>
-                            {formatStatus(selectedProduct.designStatus)}
-                          </div>
-                        </div>
-                        
-                        {selectedProduct.designStatus === "pendingApproval" && (
-                          <div className="flex justify-end">
-                            <Button onClick={handleOpenApprovalDialog}>
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Review Design
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="prepress">
-                    {(department === "prepress") && (
-                      <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="prepressStatus">Status</Label>
-                          <Select 
-                            defaultValue={prepressStatus} 
-                            onValueChange={(value) => setPrepressStatus(value as PrepressStatus)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="inProgress">In Progress</SelectItem>
-                              <SelectItem value="pendingApproval">Request Approval</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button onClick={handleUpdatePrepressStatus} disabled={loading}>
-                            {loading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Updating...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Update Status
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(department === "admin" || department === "sales") && (
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <Label>Current Status</Label>
-                          <div className={`text-sm px-2 py-1 mt-1 rounded inline-block ${getStatusColor(selectedProduct.prepressStatus)}`}>
-                            {formatStatus(selectedProduct.prepressStatus)}
-                          </div>
-                        </div>
-                        
-                        {selectedProduct.prepressStatus === "pendingApproval" && (
-                          <div className="flex justify-end">
-                            <Button onClick={handleOpenApprovalDialog}>
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Review Prepress
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="production">
-                    {(department === "production") && (
-                      <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="productionStatus">Status</Label>
-                          <Select 
-                            defaultValue={productionStatus} 
-                            onValueChange={(value) => setProductionStatus(value as ProductionStatus)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="inProcess">In Process</SelectItem>
-                              <SelectItem value="readyToDispatch">Ready To Dispatch</SelectItem>
-                              <SelectItem value="complete">Complete</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="space-y-2 mt-4">
-                          <Label>Production Stages</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center space-x-2">
-                              <input 
-                                id="printing"
-                                type="checkbox" 
-                                className="h-4 w-4 rounded"
-                                checked={productionStages.printing}
-                                onChange={(e) => handleUpdateProductionStage('printing', e.target.checked)}
-                              />
-                              <label htmlFor="printing">Printing</label>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <input 
-                                id="cutting"
-                                type="checkbox" 
-                                className="h-4 w-4 rounded"
-                                checked={productionStages.cutting}
-                                onChange={(e) => handleUpdateProductionStage('cutting', e.target.checked)}
-                              />
-                              <label htmlFor="cutting">Cutting</label>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <input 
-                                id="foiling"
-                                type="checkbox" 
-                                className="h-4 w-4 rounded"
-                                checked={productionStages.foiling}
-                                onChange={(e) => handleUpdateProductionStage('foiling', e.target.checked)}
-                              />
-                              <label htmlFor="foiling">Foiling</label>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <input 
-                                id="packaging"
-                                type="checkbox" 
-                                className="h-4 w-4 rounded"
-                                checked={productionStages.packaging}
-                                onChange={(e) => handleUpdateProductionStage('packaging', e.target.checked)}
-                              />
-                              <label htmlFor="packaging">Packaging</label>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button onClick={handleUpdateProductionStatus} disabled={loading}>
-                            {loading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Updating...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Update Status
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(department === "admin" || department === "sales") && (
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <Label>Current Status</Label>
-                          <div className={`text-sm px-2 py-1 mt-1 rounded inline-block ${getStatusColor(selectedProduct.productionStatus)}`}>
-                            {formatStatus(selectedProduct.productionStatus)}
-                          </div>
-                        </div>
-                        
-                        <div className="mt-2">
-                          <Label className="mb-2 block">Production Progress</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {selectedProduct.productionStages && Object.entries(selectedProduct.productionStages).map(([stage, completed]) => (
-                              <div key={stage} className="flex items-center space-x-2">
-                                <div className={`w-4 h-4 rounded-full ${completed ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-                                <span className="capitalize">{stage}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center h-full">
-                <RefreshCw className="h-10 w-10 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No Product Selected</h3>
-                <p className="text-muted-foreground mt-2">
-                  Select a product from the list to update its status
-                </p>
-              </div>
+    <div className="space-y-6">
+      <h3 className="text-lg font-medium">
+        {department.charAt(0).toUpperCase() + department.slice(1)} Department Workflow
+      </h3>
+      
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Product</TableHead>
+            <TableHead>Quantity</TableHead>
+            <TableHead>Status</TableHead>
+            {department === "production" && (
+              <TableHead>Production Stages</TableHead>
             )}
-          </div>
-        </div>
-        
-        {/* Approval Dialog */}
-        <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Review {activeTab === "design" ? "Design" : activeTab === "prepress" ? "Prepress" : "Product"}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Provide feedback and approve or request revisions for {selectedProduct?.name}.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="approvalStatus">Decision</Label>
-                <Select 
-                  defaultValue="approved" 
-                  onValueChange={(value) => setApprovalStatus(value as "approved" | "rejected")}
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {relevantProducts.map((product) => (
+            <TableRow key={product.id}>
+              <TableCell className="font-medium">{product.name}</TableCell>
+              <TableCell>{product.quantity}</TableCell>
+              <TableCell className="flex items-center space-x-2">
+                <span>{formatStatus(product[getStatusField(department)])}</span>
+                {getStatusIndicator(product[getStatusField(department)])}
+              </TableCell>
+              
+              {department === "production" && (
+                <TableCell>
+                  <div className="flex flex-col space-y-2">
+                    {product.productionStages && Object.entries(product.productionStages).map(([stage, completed]) => (
+                      <div key={stage} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`${product.id}-${stage}`} 
+                          checked={completed} 
+                          onCheckedChange={(checked) => 
+                            handleStageToggle(product.id, stage, checked === true)
+                          }
+                          disabled={updating[product.id || ""]}
+                        />
+                        <label 
+                          htmlFor={`${product.id}-${stage}`}
+                          className="text-sm capitalize cursor-pointer"
+                        >
+                          {stage}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </TableCell>
+              )}
+              
+              <TableCell>
+                <Select
+                  value={product[getStatusField(department)] || ""}
+                  onValueChange={(value) => handleStatusChange(product.id, value)}
+                  disabled={updating[product.id || ""]}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Decision" />
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Update status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="approved">Approve</SelectItem>
-                    <SelectItem value="rejected">Request Revisions</SelectItem>
+                    {getStatusOptions(department).map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="feedback">Feedback</Label>
-                <Textarea 
-                  id="feedback" 
-                  placeholder="Provide feedback..." 
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  rows={4}
-                />
-              </div>
-            </div>
-            
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleSubmitApproval} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    {approvalStatus === "approved" ? (
-                      <>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Approve
-                      </>
-                    ) : (
-                      <>
-                        <X className="mr-2 h-4 w-4" />
-                        Request Revisions
-                      </>
-                    )}
-                  </>
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardContent>
-    </Card>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

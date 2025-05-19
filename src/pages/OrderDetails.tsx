@@ -4,7 +4,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Pencil, ArrowLeft, Loader2, CheckCircle, AlertCircle, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -50,10 +49,12 @@ const OrderDetails = () => {
         if (orderData) {
           // Format dates for display
           if (orderData.timeline) {
-            orderData.timeline = orderData.timeline.map(event => ({
+            const formattedTimeline = orderData.timeline.map(event => ({
               ...event,
-              formattedDate: new Date(event.date.seconds * 1000).toLocaleString()
+              formattedDate: new Date(event.date.seconds * 1000).toLocaleString(),
+              note: event.note || "" // Ensure note is always defined
             }));
+            orderData.timeline = formattedTimeline;
           }
           
           setOrder(orderData);
@@ -215,7 +216,14 @@ const OrderDetails = () => {
   // Check if user can access this order
   const userCanAccessOrder = (): boolean => {
     if (!currentUser || !order) return false;
-    return canUserAccessOrder(currentUser, order);
+    return canUserAccessOrder({
+      id: currentUser.uid,
+      email: currentUser.email || "",
+      name: currentUser.displayName || "",
+      role: currentUser.role,
+      department: currentUser.role || "sales",
+      createdAt: new Date()
+    }, order);
   };
 
   if (loading) {
@@ -255,13 +263,24 @@ const OrderDetails = () => {
 
   // Format timeline events to ensure they have the required properties
   const timelineEvents: TimelineEvent[] = order.timeline?.map(event => ({
-    ...event,
-    formattedDate: event.formattedDate || new Date(event.date.seconds * 1000).toLocaleString(),
-    note: event.note || ""
+    status: event.status,
+    date: event.date,
+    note: event.note || "",
+    formattedDate: event.formattedDate || new Date(event.date.seconds * 1000).toLocaleString()
   })) || [];
 
+  // Can user update order based on role
+  const canUpdateOrder = currentUser ? canUserUpdateOrderStatus({
+    id: currentUser.uid,
+    email: currentUser.email || "",
+    name: currentUser.displayName || "",
+    role: currentUser.role,
+    department: currentUser.role || "sales",
+    createdAt: new Date()
+  }, order) : false;
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <Button variant="ghost" size="sm" asChild className="mb-2">
@@ -270,9 +289,9 @@ const OrderDetails = () => {
               Back to Orders
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold flex items-center">
-            Order #{order.orderNumber}
-            <Badge className={`ml-3 ${getStatusBadge(order.status)}`}>
+          <h1 className="text-2xl md:text-3xl font-bold flex flex-col sm:flex-row sm:items-center gap-2">
+            <span>Order #{order.orderNumber}</span>
+            <Badge className={`${getStatusBadge(order.status)} ml-0 sm:ml-3`}>
               {formatStatus(order.status)}
             </Badge>
           </h1>
@@ -281,8 +300,8 @@ const OrderDetails = () => {
           </p>
         </div>
         
-        {canUserUpdateOrderStatus(currentUser, order) && (
-          <div className="flex space-x-2">
+        {canUpdateOrder && (
+          <div className="flex flex-wrap gap-2">
             <Dialog open={departmentDialogOpen} onOpenChange={setDepartmentDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -298,7 +317,7 @@ const OrderDetails = () => {
                     <Label>Select Department</Label>
                     <Select 
                       value={selectedDepartment} 
-                      onValueChange={(value) => setSelectedDepartment(value as DepartmentType)}
+                      onValueChange={(value: string) => setSelectedDepartment(value as DepartmentType)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Choose department" />
@@ -341,7 +360,7 @@ const OrderDetails = () => {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="w-full overflow-auto">
           <TabsTrigger value="details">Order Details</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
@@ -363,7 +382,7 @@ const OrderDetails = () => {
                 
                 <OrderDelivery 
                   deliveryDate={order.deliveryDate ? new Date(order.deliveryDate.seconds * 1000).toLocaleDateString() : "Not specified"} 
-                  deliveryAddress={order.deliveryAddress} 
+                  deliveryAddress={order.deliveryAddress}
                   contactNumber={order.contactNumber}
                 />
                 
@@ -388,7 +407,14 @@ const OrderDetails = () => {
                   orderId={order.id}
                   orderAmount={order.orderAmount}
                   onUpdatePaymentStatus={handlePaymentStatusUpdate}
-                  canUpdatePayment={canUserUpdateOrderStatus(currentUser, order)}
+                  canUpdatePayment={canUserUpdateOrderStatus({
+                    id: currentUser?.uid || '',
+                    email: currentUser?.email || '',
+                    name: currentUser?.displayName || '',
+                    role: currentUser?.role || 'sales',
+                    department: currentUser?.role || 'sales',
+                    createdAt: new Date()
+                  }, order)}
                   updating={updatingStatus}
                 />
               </div>
@@ -397,25 +423,21 @@ const OrderDetails = () => {
           
           {/* Products Tab */}
           <TabsContent value="products">
-            <Card>
-              <CardContent className="p-6">
-                <OrderProducts products={order.products} />
-              </CardContent>
-            </Card>
+            <div className="bg-white rounded-md shadow p-6">
+              <OrderProducts products={order.products} />
+            </div>
           </TabsContent>
           
           {/* Workflow Tab */}
           <TabsContent value="workflow">
-            <Card>
-              <CardContent className="p-6">
-                <OrderProductsWorkflow 
-                  products={order.products} 
-                  orderId={order.id} 
-                  department={order.assignedDept}
-                  status={order.status}
-                />
-              </CardContent>
-            </Card>
+            <div className="bg-white rounded-md shadow p-6">
+              <OrderProductsWorkflow 
+                products={order.products} 
+                orderId={order.id} 
+                department={order.assignedDept}
+                status={order.status}
+              />
+            </div>
           </TabsContent>
           
           {/* Timeline Tab */}

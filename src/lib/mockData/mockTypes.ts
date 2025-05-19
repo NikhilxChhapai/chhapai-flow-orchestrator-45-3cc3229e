@@ -1,40 +1,8 @@
+
 import { MockTimestamp } from './mockTimestamp';
+import { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus } from '../firebase/types';
 
-// Order status types
-export type OrderStatus = 
-  // Initial order status
-  | 'Order_Received'
-  | 'Order_Confirmed'
-  
-  // Design statuses
-  | 'Design_InProgress'
-  | 'Design_PendingApproval'
-  | 'Design_Approved'
-  | 'Design_Rejected'
-  
-  // Prepress statuses
-  | 'Prepress_InProgress'
-  | 'Prepress_PendingApproval'
-  | 'Prepress_Approved'
-  | 'Prepress_Rejected'
-  
-  // Production statuses
-  | 'Production_Printing'
-  | 'Production_Finishing'
-  | 'Production_Completed'
-  
-  // Final statuses
-  | 'ReadyToDispatch'
-  | 'Dispatched'
-  | 'Completed'
-  | 'Cancelled';
-
-export type DepartmentType = "sales" | "design" | "prepress" | "production" | "admin";
-
-export type DesignStatus = "pending" | "pendingApproval" | "approved" | "needsRevision";
-export type PrepressStatus = "pending" | "pendingApproval" | "approved" | "needsRevision";
-export type ProductionStatus = "inProcess" | "readyToDispatch" | "complete";
-export type PaymentStatus = "unpaid" | "partial" | "paid" | "refunded" | "pending";
+export { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus };
 
 // Product in an order
 export interface OrderProduct {

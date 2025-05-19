@@ -1,284 +1,367 @@
 
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { Loader2, Edit, Trash, Plus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { DepartmentType } from "@/lib/firebase/types";
+import { Building2, Save, Plus, Trash, Check, Edit } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-// Sample departments data - in real app, this would come from Firestore
-const INITIAL_DEPARTMENTS = [
-  { id: "design", name: "Design", enabled: true, role: "designer", userCount: 5 },
-  { id: "prepress", name: "Prepress", enabled: true, role: "prepress", userCount: 3 },
-  { id: "production", name: "Production", enabled: true, role: "production", userCount: 8 },
-  { id: "dispatch", name: "Dispatch", enabled: true, role: "dispatch", userCount: 4 },
-  { id: "sales", name: "Sales", enabled: true, role: "sales", userCount: 6 },
+type Department = {
+  id: string;
+  name: string;
+  active: boolean;
+  components: string[];
+};
+
+const initialDepartments: Department[] = [
+  { id: "sales", name: "Sales", active: true, components: ["dashboard", "orders", "clients", "invoices", "payments"] },
+  { id: "design", name: "Design", active: true, components: ["dashboard", "orders", "design-requests", "design-library"] },
+  { id: "prepress", name: "Prepress", active: true, components: ["dashboard", "orders", "files", "preflight"] },
+  { id: "production", name: "Production", active: true, components: ["dashboard", "orders", "schedule", "machine-maintenance"] },
+  { id: "admin", name: "Admin", active: true, components: ["dashboard", "orders", "settings", "users", "departments"] }
+];
+
+const allComponents = [
+  { id: "dashboard", name: "Dashboard", description: "Main dashboard view" },
+  { id: "orders", name: "Orders", description: "Order management" },
+  { id: "clients", name: "Clients", description: "Client management" },
+  { id: "invoices", name: "Invoices", description: "Invoice management" },
+  { id: "payments", name: "Payments", description: "Payment tracking" },
+  { id: "design-requests", name: "Design Requests", description: "Incoming design requests" },
+  { id: "design-library", name: "Design Library", description: "Design assets library" },
+  { id: "files", name: "Files", description: "File management" },
+  { id: "preflight", name: "Preflight", description: "Preflight checks" },
+  { id: "schedule", name: "Schedule", description: "Production schedule" },
+  { id: "machine-maintenance", name: "Machine Maintenance", description: "Equipment maintenance" },
+  { id: "settings", name: "Settings", description: "System settings" },
+  { id: "users", name: "Users", description: "User management" },
+  { id: "departments", name: "Departments", description: "Department management" },
+  { id: "financial", name: "Financial", description: "Financial reports and information" },
+  { id: "analytics", name: "Analytics", description: "System analytics" }
 ];
 
 const DepartmentControl = () => {
   const { toast } = useToast();
-  const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS);
-  const [loading, setLoading] = useState(false);
-  const [newDepartment, setNewDepartment] = useState({ name: "", role: "" });
-  const [editingDepartment, setEditingDepartment] = useState<any>(null);
-  
-  // In a real app, you would load departments from Firestore
-  // useEffect(() => {
-  //   const fetchDepartments = async () => {
-  //     setLoading(true);
-  //     try {
-  //       const depsRef = collection(db, "departments");
-  //       const snapshot = await getDocs(depsRef);
-  //       const depsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  //       setDepartments(depsData);
-  //     } catch (error) {
-  //       console.error("Error fetching departments:", error);
-  //       toast({
-  //         title: "Error",
-  //         description: "Failed to load departments",
-  //         variant: "destructive",
-  //       });
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   
-  //   fetchDepartments();
-  // }, [toast]);
-  
-  const handleToggleDepartment = (id: string, enabled: boolean) => {
-    setDepartments(departments.map(dept => 
-      dept.id === id ? { ...dept, enabled } : dept
-    ));
-    
-    // In a real app, update in Firestore
+  const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [newDept, setNewDept] = useState({ name: "", id: "" });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDept, setEditDept] = useState<Department | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const handleToggleActive = (deptId: string) => {
+    setDepartments(
+      departments.map(dept => 
+        dept.id === deptId ? { ...dept, active: !dept.active } : dept
+      )
+    );
+  };
+
+  const handleToggleComponent = (deptId: string, componentId: string) => {
+    setDepartments(
+      departments.map(dept => {
+        if (dept.id === deptId) {
+          const components = [...dept.components];
+          if (components.includes(componentId)) {
+            return { ...dept, components: components.filter(id => id !== componentId) };
+          } else {
+            return { ...dept, components: [...components, componentId] };
+          }
+        }
+        return dept;
+      })
+    );
+  };
+
+  const handleSaveDepartments = () => {
+    // In a real app, this would save to the database
     toast({
-      title: `Department ${enabled ? "Enabled" : "Disabled"}`,
-      description: `Department has been ${enabled ? "enabled" : "disabled"} successfully`,
+      title: "Departments Saved",
+      description: "Department settings have been updated successfully.",
     });
   };
-  
+
   const handleAddDepartment = () => {
-    if (!newDepartment.name || !newDepartment.role) {
+    if (!newDept.name || !newDept.id) {
       toast({
         title: "Validation Error",
-        description: "Department name and role are required",
-        variant: "destructive",
+        description: "Department name and ID are required.",
+        variant: "destructive"
       });
       return;
     }
-    
-    const id = newDepartment.name.toLowerCase().replace(/\s+/g, '-');
-    
-    setDepartments([
-      ...departments,
-      {
-        id,
-        name: newDepartment.name,
-        role: newDepartment.role,
-        enabled: true,
-        userCount: 0
-      }
-    ]);
-    
-    setNewDepartment({ name: "", role: "" });
-    
-    // In a real app, add to Firestore
-    toast({
-      title: "Department Added",
-      description: `${newDepartment.name} department has been added successfully`,
-    });
-  };
-  
-  const handleUpdateDepartment = () => {
-    if (!editingDepartment || !editingDepartment.name || !editingDepartment.role) {
+
+    // Check for duplicate ID
+    if (departments.some(dept => dept.id === newDept.id)) {
+      toast({
+        title: "Validation Error",
+        description: "Department ID already exists.",
+        variant: "destructive"
+      });
       return;
     }
+
+    // Add new department
+    setDepartments([
+      ...departments, 
+      { 
+        id: newDept.id, 
+        name: newDept.name, 
+        active: true, 
+        components: ["dashboard", "orders"]
+      }
+    ]);
+
+    // Reset form and close dialog
+    setNewDept({ name: "", id: "" });
+    setDialogOpen(false);
+
+    toast({
+      title: "Department Added",
+      description: `New department "${newDept.name}" has been added.`
+    });
+  };
+
+  const handleDeleteDepartment = (deptId: string) => {
+    // Prevent deleting built-in departments
+    if (["sales", "design", "prepress", "production", "admin"].includes(deptId)) {
+      toast({
+        title: "Cannot Delete",
+        description: "Built-in departments cannot be deleted.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setDepartments(departments.filter(dept => dept.id !== deptId));
     
-    setDepartments(departments.map(dept => 
-      dept.id === editingDepartment.id ? { ...editingDepartment } : dept
-    ));
+    toast({
+      title: "Department Deleted",
+      description: "Department has been removed successfully."
+    });
+  };
+
+  const handleEditDepartment = (dept: Department) => {
+    setEditDept(dept);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editDept) return;
     
-    setEditingDepartment(null);
-    
-    // In a real app, update in Firestore
+    setDepartments(
+      departments.map(dept => 
+        dept.id === editDept.id ? editDept : dept
+      )
+    );
+
+    setEditDialogOpen(false);
+    setEditDept(null);
+
     toast({
       title: "Department Updated",
-      description: `Department has been updated successfully`,
+      description: "Department has been updated successfully."
     });
   };
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Department Management</CardTitle>
-              <CardDescription>Enable/disable departments and control access</CardDescription>
-            </div>
-            
-            <Dialog>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center">
+              <Building2 className="mr-2 h-5 w-5" />
+              Department Management
+            </CardTitle>
+            <CardDescription>
+              Configure departments and their component access
+            </CardDescription>
+          </div>
+          <div className="flex space-x-2">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="flex items-center gap-1">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Department</span>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Department
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Department</DialogTitle>
-                  <DialogDescription>
-                    Create a new department for your organization
-                  </DialogDescription>
                 </DialogHeader>
-                
                 <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <Label htmlFor="dept-name">Department Name</Label>
                     <Input 
                       id="dept-name" 
-                      value={newDepartment.name}
-                      onChange={(e) => setNewDepartment({...newDepartment, name: e.target.value})}
-                      placeholder="e.g. Accounting"
+                      value={newDept.name}
+                      onChange={(e) => setNewDept({...newDept, name: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dept-role">Role Identifier</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="dept-id">Department ID</Label>
                     <Input 
-                      id="dept-role" 
-                      value={newDepartment.role}
-                      onChange={(e) => setNewDepartment({...newDepartment, role: e.target.value})}
-                      placeholder="e.g. accounting"
+                      id="dept-id" 
+                      value={newDept.id}
+                      onChange={(e) => setNewDept({...newDept, id: e.target.value})}
+                      placeholder="e.g. accounts, logistics"
                     />
                     <p className="text-xs text-muted-foreground">
-                      This will be used for permission control
+                      Use lowercase letters, no spaces or special characters
                     </p>
                   </div>
                 </div>
-                
                 <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleAddDepartment}>Add Department</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            
+            <Button variant="outline" onClick={handleSaveDepartments}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Users</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {departments.map((dept) => (
-                    <TableRow key={dept.id}>
-                      <TableCell className="font-medium">{dept.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Switch 
-                            checked={dept.enabled}
-                            onCheckedChange={(checked) => handleToggleDepartment(dept.id, checked)}
-                          />
-                          <span className={dept.enabled ? "text-green-500" : "text-muted-foreground"}>
-                            {dept.enabled ? "Enabled" : "Disabled"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{dept.role}</TableCell>
-                      <TableCell>{dept.userCount}</TableCell>
-                      <TableCell className="text-right">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => setEditingDepartment(dept)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Department</DialogTitle>
-                              <DialogDescription>
-                                Update department details
-                              </DialogDescription>
-                            </DialogHeader>
-                            
-                            {editingDepartment && (
-                              <div className="grid gap-4 py-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-dept-name">Department Name</Label>
-                                  <Input 
-                                    id="edit-dept-name" 
-                                    value={editingDepartment.name}
-                                    onChange={(e) => setEditingDepartment({...editingDepartment, name: e.target.value})}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-dept-role">Role Identifier</Label>
-                                  <Input 
-                                    id="edit-dept-role" 
-                                    value={editingDepartment.role}
-                                    onChange={(e) => setEditingDepartment({...editingDepartment, role: e.target.value})}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                            
-                            <DialogFooter>
-                              <Button onClick={handleUpdateDepartment}>Update Department</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        
-                        <Button variant="ghost" size="icon">
-                          <Trash className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[200px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {departments.map((dept) => (
+                <TableRow key={dept.id}>
+                  <TableCell className="font-medium">{dept.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        checked={dept.active} 
+                        onCheckedChange={() => handleToggleActive(dept.id)} 
+                      />
+                      <span>{dept.active ? "Active" : "Inactive"}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEditDepartment(dept)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className={`${["sales", "design", "prepress", "production", "admin"].includes(dept.id) ? "text-gray-400" : "text-red-500 hover:bg-red-50"}`}
+                        onClick={() => handleDeleteDepartment(dept.id)}
+                        disabled={["sales", "design", "prepress", "production", "admin"].includes(dept.id)}
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Department Component Access</CardTitle>
+          <CardDescription>
+            Configure which components each department can access
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Component</TableHead>
+                  {departments.filter(d => d.active).map((dept) => (
+                    <TableHead key={dept.id}>{dept.name}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allComponents.map((component) => (
+                  <TableRow key={component.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{component.name}</div>
+                        <div className="text-sm text-muted-foreground">{component.description}</div>
+                      </div>
+                    </TableCell>
+                    {departments.filter(d => d.active).map((dept) => (
+                      <TableCell key={`${dept.id}-${component.id}`}>
+                        <Switch 
+                          checked={dept.components.includes(component.id)}
+                          onCheckedChange={() => handleToggleComponent(dept.id, component.id)}
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-end">
+          <Button onClick={handleSaveDepartments}>
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {/* Edit Department Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Department</DialogTitle>
+          </DialogHeader>
+          {editDept && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="edit-dept-name">Department Name</Label>
+                <Input 
+                  id="edit-dept-name" 
+                  value={editDept.name}
+                  onChange={(e) => setEditDept({...editDept, name: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="edit-dept-id">Department ID</Label>
+                <Input 
+                  id="edit-dept-id" 
+                  value={editDept.id}
+                  disabled
+                />
+                <p className="text-xs text-muted-foreground">
+                  Department ID cannot be changed
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>
+              <Check className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

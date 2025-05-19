@@ -1,53 +1,38 @@
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent
-} from "@/components/ui/card";
-import { Clock, Phone, MapPin } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Calendar, MapPin, Phone } from "lucide-react";
+import { OrderDeliveryProps } from "@/lib/firebase/types";
 
-interface OrderDeliveryProps {
-  deliveryDate: string;
-  contactNumber: string;
-  deliveryAddress: string;
-}
-
-const OrderDelivery = ({ 
-  deliveryDate, 
-  contactNumber, 
-  deliveryAddress 
-}: OrderDeliveryProps) => {
+const OrderDelivery = ({ deliveryDate, deliveryAddress, contactNumber }: OrderDeliveryProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Delivery Information</CardTitle>
+        <CardTitle className="text-xl font-bold">Delivery Information</CardTitle>
+        <CardDescription>Address and scheduled delivery date</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <div className="flex items-center text-muted-foreground">
-            <Clock className="h-4 w-4 mr-2" />
-            <span className="text-sm">Expected Delivery</span>
+        <div className="flex items-start space-x-3">
+          <Calendar className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Delivery Date</p>
+            <p className="text-muted-foreground">{deliveryDate}</p>
           </div>
-          <p className="font-medium mt-1">
-            {deliveryDate || "Not specified"}
-          </p>
         </div>
         
-        <div>
-          <div className="flex items-center text-muted-foreground">
-            <Phone className="h-4 w-4 mr-2" />
-            <span className="text-sm">Contact</span>
+        <div className="flex items-start space-x-3">
+          <MapPin className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Delivery Address</p>
+            <p className="text-muted-foreground whitespace-pre-line">{deliveryAddress}</p>
           </div>
-          <p className="font-medium mt-1">{contactNumber}</p>
         </div>
         
-        <div>
-          <div className="flex items-center text-muted-foreground">
-            <MapPin className="h-4 w-4 mr-2" />
-            <span className="text-sm">Address</span>
+        <div className="flex items-start space-x-3">
+          <Phone className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Contact Number</p>
+            <p className="text-muted-foreground">{contactNumber}</p>
           </div>
-          <p className="font-medium mt-1">{deliveryAddress}</p>
         </div>
       </CardContent>
     </Card>
