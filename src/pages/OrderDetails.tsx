@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Pencil, ArrowLeft, Loader2, CheckCircle, AlertCircle, ShieldAlert } from "lucide-react";
@@ -24,6 +25,7 @@ import OrderNotes from "@/components/orders/OrderNotes";
 import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus, updateOrder } from "@/lib/mockData";
 import { Order, OrderStatus, DepartmentType, PaymentStatus, TimelineEvent } from "@/lib/firebase/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { canUserUpdateOrderStatus, getNextStatuses, canUserAccessOrder } from "@/utils/workflowUtils";
 
 const OrderDetails = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -210,41 +212,10 @@ const OrderDetails = () => {
     }
   };
   
-  // Check user role permissions
-  const hasPermission = (permission: string): boolean => {
-    // In a real app, this would check currentUser.role against permissions in the database
-    // For now, using simplified logic based on mock roles
-    if (!currentUser) return false;
-    
-    // Mock user role check - in real app, check against actual permissions
-    const role = currentUser.role || "sales";
-    
-    switch(permission) {
-      case "assign_department":
-        return role === "admin" || role === "sales";
-      case "update_status":
-        return role === "admin" || role === "sales";
-      case "edit_order":
-        return role === "admin" || role === "sales";
-      case "update_payment":
-        return role === "admin" || role === "sales";
-      case "view_all_details":
-        return true; // All users can view basic details
-      default:
-        return false;
-    }
-  };
-  
-  // Check if user's department matches the order's assigned department
-  const canAccessOrder = (): boolean => {
+  // Check if user can access this order
+  const userCanAccessOrder = (): boolean => {
     if (!currentUser || !order) return false;
-    
-    // Admins and sales can access all orders
-    const role = currentUser.role || "sales";
-    if (role === "admin" || role === "sales") return true;
-    
-    // Other departments can only access orders assigned to them
-    return currentUser.department === order.assignedDept;
+    return canUserAccessOrder(currentUser, order);
   };
 
   if (loading) {
@@ -269,7 +240,7 @@ const OrderDetails = () => {
     );
   }
   
-  if (!canAccessOrder()) {
+  if (!userCanAccessOrder()) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <ShieldAlert className="h-12 w-12 text-destructive" />
@@ -281,6 +252,13 @@ const OrderDetails = () => {
       </div>
     );
   }
+
+  // Format timeline events to ensure they have the required properties
+  const timelineEvents: TimelineEvent[] = order.timeline?.map(event => ({
+    ...event,
+    formattedDate: event.formattedDate || new Date(event.date.seconds * 1000).toLocaleString(),
+    note: event.note || ""
+  })) || [];
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -303,7 +281,7 @@ const OrderDetails = () => {
           </p>
         </div>
         
-        {hasPermission("edit_order") && (
+        {canUserUpdateOrderStatus(currentUser, order) && (
           <div className="flex space-x-2">
             <Dialog open={departmentDialogOpen} onOpenChange={setDepartmentDialogOpen}>
               <DialogTrigger asChild>
@@ -320,7 +298,7 @@ const OrderDetails = () => {
                     <Label>Select Department</Label>
                     <Select 
                       value={selectedDepartment} 
-                      onValueChange={(value: DepartmentType | "") => setSelectedDepartment(value)}
+                      onValueChange={(value) => setSelectedDepartment(value as DepartmentType)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Choose department" />
@@ -376,7 +354,11 @@ const OrderDetails = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <OrderHeader 
-                  clientName={order.clientName} 
+                  clientName={order.clientName}
+                  orderNumber={order.orderNumber}
+                  orderId={order.id}
+                  gstNumber={order.gstNumber}
+                  contactNumber={order.contactNumber}
                 />
                 
                 <OrderDelivery 
@@ -402,7 +384,12 @@ const OrderDetails = () => {
                 />
                 
                 <OrderPayment 
-                  paymentStatus={order.paymentStatus || "unpaid"} 
+                  paymentStatus={order.paymentStatus}
+                  orderId={order.id}
+                  orderAmount={order.orderAmount}
+                  onUpdatePaymentStatus={handlePaymentStatusUpdate}
+                  canUpdatePayment={canUserUpdateOrderStatus(currentUser, order)}
+                  updating={updatingStatus}
                 />
               </div>
             </div>
@@ -425,6 +412,7 @@ const OrderDetails = () => {
                   products={order.products} 
                   orderId={order.id} 
                   department={order.assignedDept}
+                  status={order.status}
                 />
               </CardContent>
             </Card>
@@ -433,10 +421,7 @@ const OrderDetails = () => {
           {/* Timeline Tab */}
           <TabsContent value="timeline">
             <OrderTimeline 
-              timeline={order.timeline?.map(event => ({
-                ...event,
-                formattedDate: new Date(event.date.seconds * 1000).toLocaleString()
-              })) || []} 
+              timeline={timelineEvents}
               formatStatus={formatStatus} 
             />
           </TabsContent>

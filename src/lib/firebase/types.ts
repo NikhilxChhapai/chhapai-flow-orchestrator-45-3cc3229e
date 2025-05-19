@@ -10,6 +10,15 @@ export type DepartmentType = 'sales' | 'design' | 'prepress' | 'production';
 // Product status types
 export type ProductStatus = 'pending' | 'inProgress' | 'approved' | 'rejected' | 'completed';
 
+// Design status types
+export type DesignStatus = 'pending' | 'pendingApproval' | 'approved' | 'needsRevision';
+
+// Prepress status types
+export type PrepressStatus = 'pending' | 'pendingApproval' | 'approved' | 'needsRevision';
+
+// Production status types
+export type ProductionStatus = 'inProcess' | 'readyToDispatch' | 'complete';
+
 // Payment status
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded' | 'pending';
 
@@ -73,7 +82,7 @@ export interface OrderTimeline {
 export interface TimelineEvent {
   status: string;
   date: any; // Timestamp
-  note?: string;
+  note: string;
   formattedDate: string; // Required for display
 }
 
@@ -121,6 +130,12 @@ export interface Permission {
 // Common props for components
 export interface OrderHeaderProps {
   clientName: string;
+  orderNumber: string;
+  orderId: string;
+  onEdit?: () => void;
+  onPrint?: () => void;
+  gstNumber?: string;
+  contactNumber?: string;
 }
 
 export interface OrderDeliveryProps {
@@ -131,10 +146,16 @@ export interface OrderDeliveryProps {
 
 export interface OrderPaymentProps {
   paymentStatus: PaymentStatus;
+  orderId: string;
+  orderAmount: number;
+  onUpdatePaymentStatus?: (status: PaymentStatus) => Promise<void>;
+  canUpdatePayment?: boolean;
+  updating?: boolean;
 }
 
 export interface OrderProductsWorkflowProps {
   products: OrderProduct[];
   orderId: string;
   department: DepartmentType;
+  status?: OrderStatus;
 }

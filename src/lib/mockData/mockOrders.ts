@@ -739,6 +739,5 @@ export const mockGetDocs = async <T>(query: any): Promise<MockQuerySnapshot<T>> 
 export { 
   findOrderById, 
   createDocRef,
-  createDocSnapshot,
-  updateProductStatus
+  createDocSnapshot
 };

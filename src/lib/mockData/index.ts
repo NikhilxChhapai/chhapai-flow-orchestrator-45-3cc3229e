@@ -1,4 +1,3 @@
-
 // Main exports for the mock Firebase implementation
 import { v4 as uuidv4 } from 'uuid';
 import { MockTimestamp } from './mockTimestamp';
@@ -182,9 +181,11 @@ export {
   updateOrderStatus,
   getOrderById,
   getOrdersWithRealTimeUpdates,
+  getOrderWithRealTimeUpdates,
   getOrdersByDepartment,
   getOrdersByStatus,
-  getOrdersForBulkOperations
+  getOrdersForBulkOperations,
+  updateProductStatus
 };
 
 // New function to update payment status
