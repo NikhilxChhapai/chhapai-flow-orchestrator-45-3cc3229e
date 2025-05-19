@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import Tasks from "./pages/Tasks";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminPanel from "./pages/admin/AdminPanel"; // Import the new Admin Panel
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
                       <Route path="/departments" element={<Departments />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/admin/panel" element={<AdminPanel />} />
                     </Route>
                   </Route>
                 </Route>

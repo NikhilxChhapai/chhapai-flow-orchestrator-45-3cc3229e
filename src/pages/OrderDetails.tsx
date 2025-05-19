@@ -17,6 +17,7 @@ import OrderDelivery from "@/components/orders/OrderDelivery";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderNotes from "@/components/orders/OrderNotes";
 import OrderPayment from "@/components/orders/OrderPayment";
+import OrderProductsWorkflow from "@/components/orders/OrderProductsWorkflow";
 
 // Define Order type to fix TypeScript errors
 interface OrderTimeline {
@@ -46,10 +47,22 @@ interface Order {
   contactNumber: string;
   deliveryAddress: string;
   paymentStatus?: PaymentStatus; // Added paymentStatus
-  products: Array<{name: string; quantity?: number; price?: number}>;
+  products: Array<{
+    name: string; 
+    quantity?: number; 
+    price?: number;
+    description?: string;
+    designStatus?: string;
+    prepressStatus?: string;
+    productionStatus?: string;
+    productionStages?: {
+      [key: string]: boolean;
+    };
+  }>;
   timeline?: OrderTimeline[];
   remarks?: string;
   gstNumber?: string;
+  assignedDept?: string;
 }
 
 // Order status mapping for badge colors
@@ -77,10 +90,15 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Mock user role for permissions (in a real app, this would come from auth context)
-  // FIX: Define the user role as a union type of allowed values
+  // Define the user role as a union type of allowed values
   const userRole: "admin" | "sales" | "design" | "prepress" | "production" = "admin";
+
+  const refreshOrderData = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (!orderId) {
@@ -91,9 +109,11 @@ const OrderDetails = () => {
     // Set up real-time listener for the order
     const fetchOrder = async () => {
       try {
+        console.log("Fetching order with ID:", orderId);
         const orderData = await getOrderById(orderId);
         
         if (orderData) {
+          console.log("Order data found:", orderData);
           const processedOrder = { ...orderData as Order };
           
           // Format dates
@@ -123,6 +143,7 @@ const OrderDetails = () => {
           
           setOrder(processedOrder);
         } else {
+          console.error("No order data found for ID:", orderId);
           setOrder(null);
         }
       } catch (error) {
@@ -138,7 +159,7 @@ const OrderDetails = () => {
     };
 
     fetchOrder();
-  }, [orderId, toast]);
+  }, [orderId, toast, refreshKey]);
 
   const handleEdit = () => {
     navigate(`/orders/edit/${orderId}`);
@@ -159,6 +180,7 @@ const OrderDetails = () => {
         title: "Status Updated",
         description: `Order status updated to ${formatStatus(newStatus)}`,
       });
+      refreshOrderData();
     } catch (error) {
       console.error("Error updating status:", error);
       toast({
@@ -235,8 +257,10 @@ const OrderDetails = () => {
     })) : [];
 
   // Check if user can edit payment status (sales or admin roles)
-  // FIX: Use a proper type check condition instead of direct comparison
   const canEditPayment = userRole === "admin" || userRole === "sales";
+
+  // Determine if the user can view/edit workflow based on assigned department
+  const showWorkflow = true; // In a real app, this would check against user department
 
   return (
     <div className="space-y-6 animate-fade-in print:m-4">
@@ -268,7 +292,15 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
           
-          {/* Add OrderPayment component */}
+          {showWorkflow && (
+            <OrderProductsWorkflow
+              orderId={order.id}
+              products={order.products}
+              department={userRole}
+              onRefresh={refreshOrderData}
+            />
+          )}
+          
           <OrderPayment
             orderId={order.id}
             orderAmount={order.orderAmount}
@@ -287,6 +319,22 @@ const OrderDetails = () => {
           {order.remarks && (
             <OrderNotes remarks={order.remarks} />
           )}
+
+          {/* Department Assignment */}
+          <Card>
+            <CardContent className="pt-6">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Assigned Department</h3>
+                <p className="font-medium capitalize">{order.assignedDept || "Not assigned"}</p>
+                
+                {(userRole === "admin" || userRole === "sales") && (
+                  <div className="mt-4">
+                    {/* Department assignment buttons would go here */}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
