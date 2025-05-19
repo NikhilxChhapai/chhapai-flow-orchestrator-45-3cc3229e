@@ -22,7 +22,7 @@ import OrderPayment from "@/components/orders/OrderPayment";
 import OrderNotes from "@/components/orders/OrderNotes";
 
 import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus, updateOrder } from "@/lib/mockData";
-import { Order, OrderStatus, DepartmentType, PaymentStatus, TimelineEvent } from "@/lib/firebase/types";
+import { Order, OrderStatus, DepartmentType, PaymentStatus, TimelineEvent, UserRole } from "@/lib/firebase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { canUserUpdateOrderStatus, getNextStatuses, canUserAccessOrder } from "@/utils/workflowUtils";
 
@@ -51,13 +51,17 @@ const OrderDetails = () => {
           if (orderData.timeline) {
             const formattedTimeline = orderData.timeline.map(event => ({
               ...event,
-              formattedDate: new Date(event.date.seconds * 1000).toLocaleString(),
+              formattedDate: new Date(event.date.toDate()).toLocaleString(), // Using toDate() instead of accessing private seconds
               note: event.note || "" // Ensure note is always defined
             }));
             orderData.timeline = formattedTimeline;
           }
           
-          setOrder(orderData);
+          setOrder({
+            ...orderData,
+            // Ensure required fields have default values if missing
+            assignedDept: orderData.assignedDept || 'sales' as DepartmentType
+          });
         } else {
           toast({
             title: "Order Not Found",
@@ -216,12 +220,17 @@ const OrderDetails = () => {
   // Check if user can access this order
   const userCanAccessOrder = (): boolean => {
     if (!currentUser || !order) return false;
+    
+    // Use proper type casting to ensure type safety
+    const userRole = (currentUser.role || 'sales') as UserRole;
+    const userDept = (currentUser.role || 'sales') as DepartmentType;
+    
     return canUserAccessOrder({
       id: currentUser.uid,
       email: currentUser.email || "",
       name: currentUser.displayName || "",
-      role: currentUser.role,
-      department: currentUser.role || "sales",
+      role: userRole,
+      department: userDept,
       createdAt: new Date()
     }, order);
   };
@@ -266,16 +275,19 @@ const OrderDetails = () => {
     status: event.status,
     date: event.date,
     note: event.note || "",
-    formattedDate: event.formattedDate || new Date(event.date.seconds * 1000).toLocaleString()
+    formattedDate: event.formattedDate || new Date(event.date.toDate()).toLocaleString()
   })) || [];
 
   // Can user update order based on role
+  const userRole = (currentUser?.role || 'sales') as UserRole;
+  const userDept = (currentUser?.role || 'sales') as DepartmentType;
+  
   const canUpdateOrder = currentUser ? canUserUpdateOrderStatus({
     id: currentUser.uid,
     email: currentUser.email || "",
     name: currentUser.displayName || "",
-    role: currentUser.role,
-    department: currentUser.role || "sales",
+    role: userRole,
+    department: userDept,
     createdAt: new Date()
   }, order) : false;
 

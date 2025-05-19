@@ -26,6 +26,16 @@ export class MockTimestamp {
     return new Date(this.seconds * 1000 + this.nanoseconds / 1000000);
   }
 
+  // Provide a getter for seconds for compatibility
+  getSeconds(): number {
+    return this.seconds;
+  }
+  
+  // Provide a getter for nanoseconds for compatibility
+  getNanoseconds(): number {
+    return this.nanoseconds;
+  }
+
   toString(): string {
     return this.toDate().toString();
   }
