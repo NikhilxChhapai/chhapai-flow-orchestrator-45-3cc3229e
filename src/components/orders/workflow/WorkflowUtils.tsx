@@ -65,32 +65,50 @@ export const getStatusOptions = (department: DepartmentType, userRole: string) =
   // Department-specific options
   switch (department) {
     case "design":
-      return role === 'design' || role === 'sales' ? [
-        { value: "pending", label: "Pending" },
-        { value: "inProgress", label: "In Progress" },
-        { value: "pendingApproval", label: "Send for Approval" }
-      ] : (role === 'sales' ? [
-        { value: "approved", label: "Approved" },
-        { value: "needsRevision", label: "Needs Revision" }
-      ] : []);
+      if (role === 'design') {
+        return [
+          { value: "pending", label: "Pending" },
+          { value: "inProgress", label: "In Progress" },
+          { value: "pendingApproval", label: "Send for Approval" }
+        ];
+      } else if (role === 'sales' as any) { // Fix the type comparison
+        return [
+          { value: "approved", label: "Approved" },
+          { value: "needsRevision", label: "Needs Revision" }
+        ];
+      } else {
+        return [];
+      }
     case "prepress":
-      return role === 'prepress' || role === 'sales' ? [
-        { value: "pending", label: "Pending" },
-        { value: "inProgress", label: "In Progress" },
-        { value: "pendingApproval", label: "Send for Approval" }
-      ] : (role === 'sales' ? [
-        { value: "approved", label: "Approved" },
-        { value: "needsRevision", label: "Needs Revision" }
-      ] : []);
+      if (role === 'prepress') {
+        return [
+          { value: "pending", label: "Pending" },
+          { value: "inProgress", label: "In Progress" },
+          { value: "pendingApproval", label: "Send for Approval" }
+        ];
+      } else if (role === 'sales' as any) { // Fix the type comparison
+        return [
+          { value: "approved", label: "Approved" },
+          { value: "needsRevision", label: "Needs Revision" }
+        ];
+      } else {
+        return [];
+      }
     case "production":
-      return role === 'production' ? [
-        { value: "inProcess", label: "In Process" },
-        { value: "printing", label: "Printing" },
-        { value: "finishing", label: "Finishing" },
-        { value: "readyToDispatch", label: "Ready to Dispatch" }
-      ] : (role === 'sales' ? [
-        { value: "complete", label: "Complete" }
-      ] : []);
+      if (role === 'production') {
+        return [
+          { value: "inProcess", label: "In Process" },
+          { value: "printing", label: "Printing" },
+          { value: "finishing", label: "Finishing" },
+          { value: "readyToDispatch", label: "Ready to Dispatch" }
+        ];
+      } else if (role === 'sales' as any) { // Fix the type comparison
+        return [
+          { value: "complete", label: "Complete" }
+        ];
+      } else {
+        return [];
+      }
     default:
       return [];
   }
@@ -107,7 +125,7 @@ export const getRelevantProducts = (products: OrderProduct[], department: Depart
   }
 
   // For sales, show all products for the current department
-  if (role === 'sales') {
+  if (role === 'sales' as any) { // Fix the type comparison
     return products;
   }
   
@@ -138,6 +156,6 @@ export const canEditWorkflow = (userRole: string, department: DepartmentType): b
   const role = userRole as UserRole | DepartmentType;
   
   if (role === 'admin') return true;
-  if (role === 'sales') return true;
+  if (role === 'sales' as any) return true; // Fix the type comparison
   return role === department;
 };

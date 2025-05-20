@@ -1,64 +1,28 @@
 
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Pencil, ArrowLeft, Loader2, CheckCircle, AlertCircle, ShieldAlert } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useParams, Link } from "react-router-dom";
+import { Pencil, ArrowLeft, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-import OrderHeader from "@/components/orders/OrderHeader";
-import OrderProducts from "@/components/orders/OrderProducts";
-import OrderProductsWorkflow from "@/components/orders/OrderProductsWorkflow";
-import OrderTimeline from "@/components/orders/OrderTimeline";
-import OrderSummary from "@/components/orders/OrderSummary";
-import OrderDelivery from "@/components/orders/OrderDelivery";
-import OrderPayment from "@/components/orders/OrderPayment";
-import OrderNotes from "@/components/orders/OrderNotes";
-
 import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus, updateOrder } from "@/lib/mockData";
-import { Order, OrderStatus, DepartmentType, PaymentStatus, TimelineEvent, UserRole } from "@/lib/firebase/types";
+import { Order, OrderStatus, PaymentStatus, TimelineEvent } from "@/lib/firebase/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { canUserUpdateOrderStatus, getNextStatuses, canUserAccessOrder } from "@/utils/workflowUtils";
+import OrderAccessControl from "@/components/orders/OrderAccessControl";
+import OrderDetailTabs from "@/components/orders/OrderDetailTabs";
+import DepartmentAssignmentDialog from "@/components/orders/DepartmentAssignmentDialog";
+import OrderStatusManager from "@/components/orders/OrderStatusManager";
 
 const OrderDetails = () => {
   const { orderId } = useParams<{ orderId: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
-  const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
-  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState<DepartmentType | "">("");
-  const [note, setNote] = useState("");
-
+  
   // Get the user role for department-specific views
   const userRole = currentUser?.role || 'sales';
-
-  // Function to determine which tabs should be visible based on user role
-  const getVisibleTabs = () => {
-    if (userRole === 'admin' || userRole === 'sales') {
-      return ["details", "products", "workflow", "timeline"];
-    } else if (userRole === 'design') {
-      return ["products", "workflow"];
-    } else if (userRole === 'prepress') {
-      return ["products", "workflow"];
-    } else if (userRole === 'production') {
-      return ["products", "workflow"];
-    }
-    return ["details", "products"];
-  };
-
-  const visibleTabs = getVisibleTabs();
 
   useEffect(() => {
     let unsubscribe: () => void;
@@ -79,7 +43,7 @@ const OrderDetails = () => {
           // Make sure to set default values for required fields that might be missing
           const completeOrder: Order = {
             ...orderData,
-            assignedDept: orderData.assignedDept || ('sales' as DepartmentType),
+            assignedDept: orderData.assignedDept || ('sales' as any),
             paymentStatus: orderData.paymentStatus || ('unpaid' as PaymentStatus),
             // Ensure all products have required fields
             products: orderData.products.map(product => ({
@@ -142,7 +106,7 @@ const OrderDetails = () => {
       });
       
       // Auto-assign department based on status if enabled
-      let department: DepartmentType | undefined;
+      let department: any | undefined;
       if (newStatus.startsWith("Design_")) {
         department = "design";
       } else if (newStatus.startsWith("Prepress_")) {
@@ -173,54 +137,6 @@ const OrderDetails = () => {
     }
   };
   
-  // Handle department assignment
-  const handleAssignDepartment = async () => {
-    if (!order || !orderId || !selectedDepartment) return;
-    
-    setUpdatingStatus(true);
-    try {
-      // Determine appropriate status based on department
-      let newStatus: OrderStatus = order.status;
-      
-      if (selectedDepartment === "design") {
-        newStatus = "Design_InProgress";
-      } else if (selectedDepartment === "prepress") {
-        newStatus = "Prepress_InProgress";
-      } else if (selectedDepartment === "production") {
-        newStatus = "Production_Printing";
-      }
-      
-      await assignOrderToDepartment(orderId, selectedDepartment, newStatus);
-      
-      // Add note if provided
-      if (note) {
-        await updateOrder(orderId, {
-          remarks: order.remarks ? `${order.remarks}\n\n${note}` : note
-        });
-      }
-      
-      toast({
-        title: "Department Assigned",
-        description: `Order has been assigned to ${selectedDepartment} department.`
-      });
-      
-      // Reset form
-      setSelectedDepartment("");
-      setNote("");
-      setDepartmentDialogOpen(false);
-      
-    } catch (error) {
-      console.error("Error assigning department:", error);
-      toast({
-        title: "Error",
-        description: "Failed to assign order to department.",
-        variant: "destructive"
-      });
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
-  
   // Handle payment status update
   const handlePaymentStatusUpdate = async (status: PaymentStatus) => {
     if (!order || !orderId) return;
@@ -244,273 +160,73 @@ const OrderDetails = () => {
       setUpdatingStatus(false);
     }
   };
-  
-  // Check if user can access this order
-  const userCanAccessOrder = (): boolean => {
-    if (!currentUser || !order) return false;
-    
-    // Use proper type casting to ensure type safety
-    const userRoleTyped = (currentUser.role || 'sales') as UserRole;
-    const userDept = (currentUser.role || 'sales') as DepartmentType;
-    
-    return canUserAccessOrder({
-      id: currentUser.uid,
-      email: currentUser.email || "",
-      name: currentUser.displayName || "",
-      role: userRoleTyped,
-      department: userDept,
-      createdAt: new Date()
-    }, order);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-2 text-muted-foreground">Loading order details...</p>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <h2 className="mt-4 text-2xl font-bold">Order Not Found</h2>
-        <p className="mt-2 text-muted-foreground">The requested order could not be found.</p>
-        <Button asChild className="mt-6">
-          <Link to="/orders"><ArrowLeft className="mr-2 h-4 w-4" />Back to Orders</Link>
-        </Button>
-      </div>
-    );
-  }
-  
-  if (!userCanAccessOrder()) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <h2 className="mt-4 text-2xl font-bold">Access Restricted</h2>
-        <p className="mt-2 text-muted-foreground">You don't have permission to view this order.</p>
-        <Button asChild className="mt-6">
-          <Link to="/orders"><ArrowLeft className="mr-2 h-4 w-4" />Back to Orders</Link>
-        </Button>
-      </div>
-    );
-  }
 
   // Format timeline events to ensure they have the required properties
-  const timelineEvents: TimelineEvent[] = order.timeline?.map(event => ({
+  const timelineEvents: TimelineEvent[] = order?.timeline?.map(event => ({
     status: event.status,
     date: event.date,
     note: event.note || "",
     formattedDate: event.formattedDate || new Date(event.date.toDate()).toLocaleString()
   })) || [];
 
-  // Can user update order based on role
-  const userRoleTyped = (currentUser?.role || 'sales') as UserRole;
-  const userDept = (currentUser?.role || 'sales') as DepartmentType;
-  
-  const canUpdateOrder = currentUser ? canUserUpdateOrderStatus({
-    id: currentUser.uid,
-    email: currentUser.email || "",
-    name: currentUser.displayName || "",
-    role: userRoleTyped,
-    department: userDept,
-    createdAt: new Date()
-  }, order) : false;
-
-  // Set initial active tab based on user role if not already set
-  useEffect(() => {
-    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
-      setActiveTab(visibleTabs[0]);
-    }
-  }, [visibleTabs, activeTab]);
-
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="mb-2">
-            <Link to="/orders">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Orders
-            </Link>
-          </Button>
-          <h1 className="text-2xl md:text-3xl font-bold flex flex-col sm:flex-row sm:items-center gap-2">
-            <span>Order #{order.orderNumber}</span>
-            <Badge className={`${getStatusBadge(order.status)} ml-0 sm:ml-3`}>
-              {formatStatus(order.status)}
-            </Badge>
-          </h1>
-          <p className="text-muted-foreground">
-            Created on {new Date(order.createdAt.seconds * 1000).toLocaleString()}
-          </p>
+    <OrderAccessControl loading={loading} order={order} currentUser={currentUser}>
+      <div className="container mx-auto p-4 md:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <Button variant="ghost" size="sm" asChild className="mb-2">
+              <Link to="/orders">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Orders
+              </Link>
+            </Button>
+            <h1 className="text-2xl md:text-3xl font-bold flex flex-col sm:flex-row sm:items-center gap-2">
+              <span>Order #{order?.orderNumber}</span>
+              <Badge className={`${order ? getStatusBadge(order.status) : ''} ml-0 sm:ml-3`}>
+                {order ? formatStatus(order.status) : ''}
+              </Badge>
+            </h1>
+            <p className="text-muted-foreground">
+              Created on {order && new Date(order.createdAt.seconds * 1000).toLocaleString()}
+            </p>
+          </div>
+          
+          {(userRole === 'admin' || userRole === 'sales') && order && (
+            <div className="flex flex-wrap gap-2">
+              {order && (
+                <DepartmentAssignmentDialog 
+                  orderId={order.id} 
+                  currentDepartment={order.assignedDept} 
+                  remarks={order.remarks}
+                />
+              )}
+              
+              {userRole === 'admin' && (
+                <Button variant="outline" asChild>
+                  <Link to={`/orders/edit/${orderId}`}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Order
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         
-        {(userRole === 'admin' || userRole === 'sales') && canUpdateOrder && (
-          <div className="flex flex-wrap gap-2">
-            <Dialog open={departmentDialogOpen} onOpenChange={setDepartmentDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  Assign Department
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Assign to Department</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Select Department</Label>
-                    <Select 
-                      value={selectedDepartment} 
-                      onValueChange={(value: string) => setSelectedDepartment(value as DepartmentType)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="design">Design</SelectItem>
-                        <SelectItem value="prepress">Prepress</SelectItem>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="sales">Sales</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Note (Optional)</Label>
-                    <Textarea 
-                      placeholder="Add a note about this assignment" 
-                      value={note} 
-                      onChange={(e) => setNote(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDepartmentDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleAssignDepartment} disabled={!selectedDepartment || updatingStatus}>
-                    {updatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                    Assign
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            {userRole === 'admin' && (
-              <Button variant="outline" asChild>
-                <Link to={`/orders/edit/${orderId}`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Order
-                </Link>
-              </Button>
-            )}
-          </div>
+        {order && (
+          <OrderDetailTabs 
+            order={order}
+            userRole={userRole}
+            timelineEvents={timelineEvents}
+            onStatusUpdate={handleStatusUpdate}
+            onUpdatePaymentStatus={handlePaymentStatusUpdate}
+            updatingStatus={updatingStatus}
+            formatStatus={formatStatus}
+            getStatusBadge={getStatusBadge}
+          />
         )}
       </div>
-      
-      {/* Only show tabs that are relevant to the user's role */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full mb-6 tabs-list">
-          {visibleTabs.includes("details") && (
-            <TabsTrigger value="details" className="flex-1 py-3 tab-trigger">Order Details</TabsTrigger>
-          )}
-          {visibleTabs.includes("products") && (
-            <TabsTrigger value="products" className="flex-1 py-3 tab-trigger">Products</TabsTrigger>
-          )}
-          {visibleTabs.includes("workflow") && (
-            <TabsTrigger value="workflow" className="flex-1 py-3 tab-trigger">Workflow</TabsTrigger>
-          )}
-          {visibleTabs.includes("timeline") && (
-            <TabsTrigger value="timeline" className="flex-1 py-3 tab-trigger">Timeline</TabsTrigger>
-          )}
-        </TabsList>
-        
-        <div className="mt-6">
-          {/* Order Details Tab */}
-          <TabsContent value="details" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2 space-y-6">
-                <OrderHeader 
-                  clientName={order.clientName}
-                  orderNumber={order.orderNumber}
-                  orderId={order.id}
-                  gstNumber={order.gstNumber}
-                  contactNumber={order.contactNumber}
-                />
-                
-                <OrderDelivery 
-                  deliveryDate={order.deliveryDate ? new Date(order.deliveryDate.seconds * 1000).toLocaleDateString() : "Not specified"} 
-                  deliveryAddress={order.deliveryAddress}
-                  contactNumber={order.contactNumber}
-                />
-                
-                <OrderNotes remarks={order.remarks} />
-              </div>
-              
-              <div className="space-y-6">
-                <OrderSummary 
-                  orderAmount={order.orderAmount}
-                  status={order.status}
-                  clientName={order.clientName}
-                  gstNumber={order.gstNumber}
-                  createdDate={new Date(order.createdAt.seconds * 1000).toLocaleDateString()}
-                  onStatusUpdate={handleStatusUpdate}
-                  updating={updatingStatus}
-                  formatStatus={formatStatus}
-                  getStatusBadge={getStatusBadge}
-                  departmentType={order.assignedDept}
-                />
-                
-                {(userRole === 'admin' || userRole === 'sales') && (
-                  <OrderPayment 
-                    paymentStatus={order.paymentStatus}
-                    orderId={order.id}
-                    orderAmount={order.orderAmount}
-                    onUpdatePaymentStatus={handlePaymentStatusUpdate}
-                    canUpdatePayment={canUserUpdateOrderStatus({
-                      id: currentUser?.uid || '',
-                      email: currentUser?.email || '',
-                      name: currentUser?.displayName || '',
-                      role: userRoleTyped,
-                      department: userDept,
-                      createdAt: new Date()
-                    }, order)}
-                    updating={updatingStatus}
-                  />
-                )}
-              </div>
-            </div>
-          </TabsContent>
-          
-          {/* Products Tab */}
-          <TabsContent value="products">
-            <div className="bg-white rounded-md shadow-sm border p-6">
-              <OrderProducts products={order.products} />
-            </div>
-          </TabsContent>
-          
-          {/* Workflow Tab */}
-          <TabsContent value="workflow">
-            <div className="bg-white rounded-md shadow-sm border p-6">
-              <OrderProductsWorkflow 
-                products={order.products} 
-                orderId={order.id} 
-                department={order.assignedDept}
-                status={order.status}
-              />
-            </div>
-          </TabsContent>
-          
-          {/* Timeline Tab */}
-          <TabsContent value="timeline">
-            <OrderTimeline 
-              timeline={timelineEvents}
-              formatStatus={formatStatus} 
-            />
-          </TabsContent>
-        </div>
-      </Tabs>
-    </div>
+    </OrderAccessControl>
   );
 };
 
