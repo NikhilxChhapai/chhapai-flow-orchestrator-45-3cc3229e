@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,8 +85,8 @@ const OrderStatusManager = ({ order, currentUser, onSuccess }: OrderStatusManage
     createdAt: new Date()
   }, order) : false;
 
-  // Get next available statuses
-  const nextStatuses = getNextStatuses(order.status, userRoleTyped);
+  // Get next available statuses - passing all three required parameters
+  const nextStatuses = getNextStatuses(order.status, userRoleTyped, userDept);
 
   if (!canUpdateOrder || nextStatuses.length === 0) {
     return null;

@@ -30,7 +30,7 @@ const DepartmentAssignmentDialog = ({ orderId, currentDepartment, remarks, onSuc
     setUpdating(true);
     try {
       // Determine appropriate status based on department
-      let newStatus: OrderStatus = "Order_Placed";
+      let newStatus: OrderStatus = "Order_Received"; // Changed from "Order_Placed" to "Order_Received" which is a valid OrderStatus
       
       if (selectedDepartment === "design") {
         newStatus = "Design_InProgress";
