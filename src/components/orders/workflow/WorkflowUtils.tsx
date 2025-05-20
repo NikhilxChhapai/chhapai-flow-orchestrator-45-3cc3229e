@@ -25,9 +25,12 @@ export const getStatusField = (department: DepartmentType): "designStatus" | "pr
 };
 
 // Define appropriate status options based on department and user role
-export const getStatusOptions = (department: DepartmentType, userRole: UserRole | DepartmentType) => {
+export const getStatusOptions = (department: DepartmentType, userRole: string) => {
+  // Convert userRole string to UserRole type for proper type checking
+  const role = userRole as UserRole | DepartmentType;
+  
   // Admin can update any status
-  if (userRole === 'admin') {
+  if (role === 'admin') {
     switch (department) {
       case "design":
         return [
@@ -62,30 +65,30 @@ export const getStatusOptions = (department: DepartmentType, userRole: UserRole 
   // Department-specific options
   switch (department) {
     case "design":
-      return userRole === 'design' || userRole === 'sales' ? [
+      return role === 'design' || role === 'sales' ? [
         { value: "pending", label: "Pending" },
         { value: "inProgress", label: "In Progress" },
         { value: "pendingApproval", label: "Send for Approval" }
-      ] : (userRole === 'sales' ? [
+      ] : (role === 'sales' ? [
         { value: "approved", label: "Approved" },
         { value: "needsRevision", label: "Needs Revision" }
       ] : []);
     case "prepress":
-      return userRole === 'prepress' || userRole === 'sales' ? [
+      return role === 'prepress' || role === 'sales' ? [
         { value: "pending", label: "Pending" },
         { value: "inProgress", label: "In Progress" },
         { value: "pendingApproval", label: "Send for Approval" }
-      ] : (userRole === 'sales' ? [
+      ] : (role === 'sales' ? [
         { value: "approved", label: "Approved" },
         { value: "needsRevision", label: "Needs Revision" }
       ] : []);
     case "production":
-      return userRole === 'production' ? [
+      return role === 'production' ? [
         { value: "inProcess", label: "In Process" },
         { value: "printing", label: "Printing" },
         { value: "finishing", label: "Finishing" },
         { value: "readyToDispatch", label: "Ready to Dispatch" }
-      ] : (userRole === 'sales' ? [
+      ] : (role === 'sales' ? [
         { value: "complete", label: "Complete" }
       ] : []);
     default:
@@ -94,31 +97,34 @@ export const getStatusOptions = (department: DepartmentType, userRole: UserRole 
 };
 
 // Filter products based on department workflow and user role
-export const getRelevantProducts = (products: OrderProduct[], department: DepartmentType, userRole: UserRole | DepartmentType) => {
+export const getRelevantProducts = (products: OrderProduct[], department: DepartmentType, userRole: string) => {
+  // Convert userRole string to UserRole type for proper type checking
+  const role = userRole as UserRole | DepartmentType;
+  
   // Admin can see all products
-  if (userRole === 'admin') {
+  if (role === 'admin') {
     return products;
   }
 
   // For sales, show all products for the current department
-  if (userRole === 'sales') {
+  if (role === 'sales') {
     return products;
   }
   
   // For other departments, filter based on their workflow
   return products.filter(product => {
     // For design, only show products that haven't been approved yet
-    if (userRole === 'design' && department === 'design') {
+    if (role === 'design' && department === 'design') {
       return product.designStatus !== "approved";
     }
     
     // For prepress, only show products with approved designs but not approved prepress
-    if (userRole === 'prepress' && department === 'prepress') {
+    if (role === 'prepress' && department === 'prepress') {
       return product.designStatus === "approved" && product.prepressStatus !== "approved";
     }
     
     // For production, only show products with approved prepress
-    if (userRole === 'production' && department === 'production') {
+    if (role === 'production' && department === 'production') {
       return product.prepressStatus === "approved";
     }
     
@@ -127,8 +133,11 @@ export const getRelevantProducts = (products: OrderProduct[], department: Depart
 };
 
 // Check if user can edit this department's workflow
-export const canEditWorkflow = (userRole: UserRole | DepartmentType, department: DepartmentType): boolean => {
-  if (userRole === 'admin') return true;
-  if (userRole === 'sales') return true;
-  return userRole === department;
+export const canEditWorkflow = (userRole: string, department: DepartmentType): boolean => {
+  // Convert userRole string to UserRole type for proper type checking
+  const role = userRole as UserRole | DepartmentType;
+  
+  if (role === 'admin') return true;
+  if (role === 'sales') return true;
+  return role === department;
 };
