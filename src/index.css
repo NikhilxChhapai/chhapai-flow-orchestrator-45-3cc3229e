@@ -114,19 +114,19 @@
 }
 
 .status-pending {
-  @apply bg-yellow-100 text-yellow-800;
+  @apply bg-yellow-200 text-yellow-800;
 }
 
 .status-approved {
-  @apply bg-green-100 text-green-800;
+  @apply bg-green-200 text-green-800;
 }
 
 .status-error {
-  @apply bg-red-100 text-red-800;
+  @apply bg-red-200 text-red-800;
 }
 
 .status-progress {
-  @apply bg-blue-100 text-blue-800;
+  @apply bg-blue-200 text-blue-800;
 }
 
 /* Improved table styles */
@@ -142,3 +142,44 @@
   @apply even:bg-muted/20;
 }
 
+/* Department-specific styling */
+.department-design {
+  @apply border-l-4 border-indigo-500;
+}
+
+.department-prepress {
+  @apply border-l-4 border-purple-500;
+}
+
+.department-production {
+  @apply border-l-4 border-amber-500;
+}
+
+.department-sales {
+  @apply border-l-4 border-blue-500;
+}
+
+/* Status button styles */
+.status-button-design {
+  @apply bg-indigo-50 text-indigo-700 hover:bg-indigo-100;
+}
+
+.status-button-prepress {
+  @apply bg-purple-50 text-purple-700 hover:bg-purple-100;
+}
+
+.status-button-production {
+  @apply bg-amber-50 text-amber-700 hover:bg-amber-100;
+}
+
+.status-button-sales {
+  @apply bg-blue-50 text-blue-700 hover:bg-blue-100;
+}
+
+.status-button-complete {
+  @apply bg-green-50 text-green-700 hover:bg-green-100;
+}
+
+.status-button-error {
+  @apply bg-red-50 text-red-700 hover:bg-red-100;
+}

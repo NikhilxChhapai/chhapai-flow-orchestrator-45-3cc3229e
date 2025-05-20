@@ -2,10 +2,10 @@
 import { MockTimestamp } from './mockTimestamp';
 
 // First import the types so they're available for use within this file
-import { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus } from '../firebase/types';
+import { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus, UserRole } from '../firebase/types';
 
 // Re-export types correctly with 'export type'
-export type { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus } from '../firebase/types';
+export type { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus, UserRole } from '../firebase/types';
 
 // Product in an order
 export interface OrderProduct {
@@ -61,7 +61,7 @@ export interface UserData {
   email: string;
   displayName: string;
   photoURL?: string;
-  role: DepartmentType;
+  role: UserRole | DepartmentType;
   department?: string;
   createdAt: MockTimestamp;
 }

@@ -41,6 +41,25 @@ const OrderDetails = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<DepartmentType | "">("");
   const [note, setNote] = useState("");
 
+  // Get the user role for department-specific views
+  const userRole = currentUser?.role || 'sales';
+
+  // Function to determine which tabs should be visible based on user role
+  const getVisibleTabs = () => {
+    if (userRole === 'admin' || userRole === 'sales') {
+      return ["details", "products", "workflow", "timeline"];
+    } else if (userRole === 'design') {
+      return ["products", "workflow"];
+    } else if (userRole === 'prepress') {
+      return ["products", "workflow"];
+    } else if (userRole === 'production') {
+      return ["products", "workflow"];
+    }
+    return ["details", "products"];
+  };
+
+  const visibleTabs = getVisibleTabs();
+
   useEffect(() => {
     let unsubscribe: () => void;
 
@@ -70,7 +89,7 @@ const OrderDetails = () => {
             }))
           };
           
-          setOrder(completeOrder as Order);
+          setOrder(completeOrder);
         } else {
           toast({
             title: "Order Not Found",
@@ -231,14 +250,14 @@ const OrderDetails = () => {
     if (!currentUser || !order) return false;
     
     // Use proper type casting to ensure type safety
-    const userRole = (currentUser.role || 'sales') as UserRole;
+    const userRoleTyped = (currentUser.role || 'sales') as UserRole;
     const userDept = (currentUser.role || 'sales') as DepartmentType;
     
     return canUserAccessOrder({
       id: currentUser.uid,
       email: currentUser.email || "",
       name: currentUser.displayName || "",
-      role: userRole,
+      role: userRoleTyped,
       department: userDept,
       createdAt: new Date()
     }, order);
@@ -288,17 +307,24 @@ const OrderDetails = () => {
   })) || [];
 
   // Can user update order based on role
-  const userRole = (currentUser?.role || 'sales') as UserRole;
+  const userRoleTyped = (currentUser?.role || 'sales') as UserRole;
   const userDept = (currentUser?.role || 'sales') as DepartmentType;
   
   const canUpdateOrder = currentUser ? canUserUpdateOrderStatus({
     id: currentUser.uid,
     email: currentUser.email || "",
     name: currentUser.displayName || "",
-    role: userRole,
+    role: userRoleTyped,
     department: userDept,
     createdAt: new Date()
   }, order) : false;
+
+  // Set initial active tab based on user role if not already set
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [visibleTabs, activeTab]);
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -321,7 +347,7 @@ const OrderDetails = () => {
           </p>
         </div>
         
-        {canUpdateOrder && (
+        {(userRole === 'admin' || userRole === 'sales') && canUpdateOrder && (
           <div className="flex flex-wrap gap-2">
             <Dialog open={departmentDialogOpen} onOpenChange={setDepartmentDialogOpen}>
               <DialogTrigger asChild>
@@ -370,22 +396,33 @@ const OrderDetails = () => {
               </DialogContent>
             </Dialog>
             
-            <Button variant="outline" asChild>
-              <Link to={`/orders/edit/${orderId}`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Order
-              </Link>
-            </Button>
+            {userRole === 'admin' && (
+              <Button variant="outline" asChild>
+                <Link to={`/orders/edit/${orderId}`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Order
+                </Link>
+              </Button>
+            )}
           </div>
         )}
       </div>
       
+      {/* Only show tabs that are relevant to the user's role */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full mb-6 bg-muted/70 text-muted-foreground">
-          <TabsTrigger value="details" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Order Details</TabsTrigger>
-          <TabsTrigger value="products" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Products</TabsTrigger>
-          <TabsTrigger value="workflow" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Workflow</TabsTrigger>
-          <TabsTrigger value="timeline" className="flex-1 py-3 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow">Timeline</TabsTrigger>
+        <TabsList className="w-full mb-6 tabs-list">
+          {visibleTabs.includes("details") && (
+            <TabsTrigger value="details" className="flex-1 py-3 tab-trigger">Order Details</TabsTrigger>
+          )}
+          {visibleTabs.includes("products") && (
+            <TabsTrigger value="products" className="flex-1 py-3 tab-trigger">Products</TabsTrigger>
+          )}
+          {visibleTabs.includes("workflow") && (
+            <TabsTrigger value="workflow" className="flex-1 py-3 tab-trigger">Workflow</TabsTrigger>
+          )}
+          {visibleTabs.includes("timeline") && (
+            <TabsTrigger value="timeline" className="flex-1 py-3 tab-trigger">Timeline</TabsTrigger>
+          )}
         </TabsList>
         
         <div className="mt-6">
@@ -424,21 +461,23 @@ const OrderDetails = () => {
                   departmentType={order.assignedDept}
                 />
                 
-                <OrderPayment 
-                  paymentStatus={order.paymentStatus}
-                  orderId={order.id}
-                  orderAmount={order.orderAmount}
-                  onUpdatePaymentStatus={handlePaymentStatusUpdate}
-                  canUpdatePayment={canUserUpdateOrderStatus({
-                    id: currentUser?.uid || '',
-                    email: currentUser?.email || '',
-                    name: currentUser?.displayName || '',
-                    role: userRole,
-                    department: userDept,
-                    createdAt: new Date()
-                  }, order)}
-                  updating={updatingStatus}
-                />
+                {(userRole === 'admin' || userRole === 'sales') && (
+                  <OrderPayment 
+                    paymentStatus={order.paymentStatus}
+                    orderId={order.id}
+                    orderAmount={order.orderAmount}
+                    onUpdatePaymentStatus={handlePaymentStatusUpdate}
+                    canUpdatePayment={canUserUpdateOrderStatus({
+                      id: currentUser?.uid || '',
+                      email: currentUser?.email || '',
+                      name: currentUser?.displayName || '',
+                      role: userRoleTyped,
+                      department: userDept,
+                      createdAt: new Date()
+                    }, order)}
+                    updating={updatingStatus}
+                  />
+                )}
               </div>
             </div>
           </TabsContent>

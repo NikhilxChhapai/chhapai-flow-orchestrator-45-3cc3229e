@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OrderProduct, DepartmentType, OrderStatus } from "@/lib/firebase/types";
 import { updateProductStatus } from "@/lib/mockData";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface OrderProductsWorkflowProps {
   products: OrderProduct[];
@@ -19,30 +20,73 @@ interface OrderProductsWorkflowProps {
 const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderProductsWorkflowProps) => {
   const { toast } = useToast();
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role || 'sales';
   
   // Define appropriate status options based on department
   const getStatusOptions = (department: DepartmentType) => {
+    // Admin can update any status
+    if (userRole === 'admin') {
+      switch (department) {
+        case "design":
+          return [
+            { value: "pending", label: "Pending" },
+            { value: "inProgress", label: "In Progress" },
+            { value: "pendingApproval", label: "Send for Approval" },
+            { value: "approved", label: "Approved" },
+            { value: "needsRevision", label: "Needs Revision" }
+          ];
+        case "prepress":
+          return [
+            { value: "pending", label: "Pending" },
+            { value: "inProgress", label: "In Progress" },
+            { value: "pendingApproval", label: "Send for Approval" },
+            { value: "approved", label: "Approved" },
+            { value: "needsRevision", label: "Needs Revision" }
+          ];
+        case "production":
+          return [
+            { value: "pending", label: "Pending" },
+            { value: "inProcess", label: "In Process" },
+            { value: "printing", label: "Printing" },
+            { value: "finishing", label: "Finishing" },
+            { value: "readyToDispatch", label: "Ready to Dispatch" },
+            { value: "complete", label: "Complete" }
+          ];
+        default:
+          return [];
+      }
+    }
+    
+    // Department-specific options
     switch (department) {
       case "design":
-        return [
+        return userRole === 'design' || userRole === 'sales' ? [
           { value: "pending", label: "Pending" },
-          { value: "pendingApproval", label: "Send for Approval" },
+          { value: "inProgress", label: "In Progress" },
+          { value: "pendingApproval", label: "Send for Approval" }
+        ] : (userRole === 'sales' ? [
           { value: "approved", label: "Approved" },
           { value: "needsRevision", label: "Needs Revision" }
-        ];
+        ] : []);
       case "prepress":
-        return [
+        return userRole === 'prepress' || userRole === 'sales' ? [
           { value: "pending", label: "Pending" },
-          { value: "pendingApproval", label: "Send for Approval" },
+          { value: "inProgress", label: "In Progress" },
+          { value: "pendingApproval", label: "Send for Approval" }
+        ] : (userRole === 'sales' ? [
           { value: "approved", label: "Approved" },
           { value: "needsRevision", label: "Needs Revision" }
-        ];
+        ] : []);
       case "production":
-        return [
+        return userRole === 'production' ? [
           { value: "inProcess", label: "In Process" },
-          { value: "readyToDispatch", label: "Ready to Dispatch" },
+          { value: "printing", label: "Printing" },
+          { value: "finishing", label: "Finishing" },
+          { value: "readyToDispatch", label: "Ready to Dispatch" }
+        ] : (userRole === 'sales' ? [
           { value: "complete", label: "Complete" }
-        ];
+        ] : []);
       default:
         return [];
     }
@@ -58,7 +102,7 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
       case "production":
         return "productionStatus";
       default:
-        return "designStatus"; // Default fallback
+        return "designStatus";
     }
   };
   
@@ -139,34 +183,53 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
     }
   };
   
-  // Filter products based on department workflow
-  const relevantProducts = products.filter(product => {
-    // For sales, show all products
-    if (department === "sales") return true;
-    
-    // For design, only show products that haven't been approved yet
-    if (department === "design") {
-      return product.designStatus !== "approved";
+  // Filter products based on department workflow and user role
+  const getRelevantProducts = () => {
+    // Admin can see all products
+    if (userRole === 'admin') {
+      return products;
     }
-    
-    // For prepress, only show products with approved designs but not approved prepress
-    if (department === "prepress") {
-      return product.designStatus === "approved" && product.prepressStatus !== "approved";
-    }
-    
-    // For production, only show products with approved prepress
-    if (department === "production") {
-      return product.prepressStatus === "approved";
-    }
-    
-    return true;
-  });
 
-  // If no department, show message
-  if (!department) {
+    // For sales, show all products for the current department
+    if (userRole === 'sales') {
+      return products;
+    }
+    
+    // For other departments, filter based on their workflow
+    return products.filter(product => {
+      // For design, only show products that haven't been approved yet
+      if (userRole === 'design' && department === 'design') {
+        return product.designStatus !== "approved";
+      }
+      
+      // For prepress, only show products with approved designs but not approved prepress
+      if (userRole === 'prepress' && department === 'prepress') {
+        return product.designStatus === "approved" && product.prepressStatus !== "approved";
+      }
+      
+      // For production, only show products with approved prepress
+      if (userRole === 'production' && department === 'production') {
+        return product.prepressStatus === "approved";
+      }
+      
+      return false;
+    });
+  };
+
+  const relevantProducts = getRelevantProducts();
+
+  // Check if user can edit this department's workflow
+  const canEditWorkflow = () => {
+    if (userRole === 'admin') return true;
+    if (userRole === 'sales') return true;
+    return userRole === department;
+  };
+
+  // If no department or not relevant to current user, show message
+  if (!department || (!canEditWorkflow() && userRole !== 'admin')) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">This order has not been assigned to a department yet.</p>
+        <p className="text-muted-foreground">You don't have permission to update this workflow.</p>
       </div>
     );
   }
@@ -189,12 +252,12 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
       
       <div className="border rounded-md shadow-sm overflow-hidden">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead className="font-semibold text-foreground">Product</TableHead>
               <TableHead className="font-semibold text-foreground">Quantity</TableHead>
               <TableHead className="font-semibold text-foreground">Status</TableHead>
-              {department === "production" && (
+              {department === "production" && userRole === "production" && (
                 <TableHead className="font-semibold text-foreground">Production Stages</TableHead>
               )}
               <TableHead className="font-semibold text-foreground">Actions</TableHead>
@@ -210,7 +273,7 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
                   {getStatusIndicator(product[getStatusField(department)])}
                 </TableCell>
                 
-                {department === "production" && (
+                {department === "production" && userRole === "production" && (
                   <TableCell>
                     <div className="flex flex-col space-y-2">
                       {product.productionStages && Object.entries(product.productionStages).map(([stage, completed]) => (
@@ -237,20 +300,24 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
                 )}
                 
                 <TableCell>
-                  <Select
-                    value={product[getStatusField(department)] || ""}
-                    onValueChange={(value) => handleStatusChange(product.id, value)}
-                    disabled={updating[product.id || ""]}
-                  >
-                    <SelectTrigger className="w-[180px] bg-white">
-                      <SelectValue placeholder="Update status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getStatusOptions(department).map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {getStatusOptions(department).length > 0 ? (
+                    <Select
+                      value={product[getStatusField(department)] || ""}
+                      onValueChange={(value) => handleStatusChange(product.id, value)}
+                      disabled={updating[product.id || ""]}
+                    >
+                      <SelectTrigger className="w-[180px] bg-white">
+                        <SelectValue placeholder="Update status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getStatusOptions(department).map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No actions available</span>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
