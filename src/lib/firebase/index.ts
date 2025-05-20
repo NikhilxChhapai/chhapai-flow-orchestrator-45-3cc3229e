@@ -1,4 +1,3 @@
-
 // Import the functions from the Firebase SDKs
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, User } from "firebase/auth";
@@ -334,6 +333,26 @@ export const getOrderById = async (orderId: string) => {
   } else {
     return null;
   }
+};
+
+// New function to get a single order with real-time updates
+export const getOrderWithRealTimeUpdates = (orderId: string, callback: (order: Order | null) => void) => {
+  const orderRef = doc(db, "orders", orderId);
+  
+  return onSnapshot(orderRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const orderData = { 
+        id: snapshot.id,
+        ...snapshot.data()
+      } as Order;
+      callback(orderData);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Error getting order with real-time updates:", error);
+    callback(null);
+  });
 };
 
 export const getOrdersWithRealTimeUpdates = (callback: (orders: any[]) => void) => {

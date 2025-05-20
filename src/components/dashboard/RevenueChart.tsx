@@ -87,9 +87,12 @@ const RevenueChart = () => {
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={formatCurrency} />
-                <Tooltip formatter={(value) => [`₹${value}`, "Revenue"]} />
+                <XAxis dataKey="name" tick={{ fill: 'var(--foreground)' }} />
+                <YAxis tickFormatter={formatCurrency} tick={{ fill: 'var(--foreground)' }} />
+                <Tooltip 
+                  formatter={(value) => [`₹${value}`, "Revenue"]} 
+                  contentStyle={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
+                />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

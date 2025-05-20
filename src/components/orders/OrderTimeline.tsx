@@ -41,13 +41,13 @@ const getStatusIcon = (status: string): LucideIcon => {
 
 const OrderTimeline = ({ timeline, formatStatus }: OrderTimelineProps) => {
   return (
-    <Card>
+    <Card className="bg-card">
       <CardHeader>
         <CardTitle>Order Timeline</CardTitle>
         <CardDescription>Track the progress of your order</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative pl-6 border-l border-border">
+        <div className="relative pl-8 border-l border-border space-y-6">
           {timeline && timeline.length > 0 ? (
             timeline.map((event: TimelineEvent, index: number) => {
               const Icon = getStatusIcon(event.status);
@@ -55,19 +55,19 @@ const OrderTimeline = ({ timeline, formatStatus }: OrderTimelineProps) => {
               return (
                 <div 
                   key={index} 
-                  className={`relative mb-6 ${index === timeline.length - 1 ? "" : ""}`}
+                  className="relative"
                 >
-                  <div className="absolute -left-[25px] h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="absolute -left-[25px] top-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                    <div>
-                      <h4 className="text-base font-medium">{formatStatus(event.status)}</h4>
-                      <p className="text-sm text-muted-foreground">{event.note}</p>
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <h4 className="text-base font-medium text-foreground">{formatStatus(event.status)}</h4>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {event.formattedDate}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground mt-1 md:mt-0">
-                      {event.formattedDate}
-                    </span>
+                    <p className="text-sm text-muted-foreground break-words">{event.note}</p>
                   </div>
                 </div>
               );

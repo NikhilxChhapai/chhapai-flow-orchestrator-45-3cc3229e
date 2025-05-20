@@ -1,6 +1,10 @@
 
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { OrderProduct, DepartmentType } from "@/lib/firebase/types";
 import { updateProductStatus } from "@/lib/mockData";
@@ -22,9 +26,31 @@ const ProductStatusSelector = ({
 }: ProductStatusSelectorProps) => {
   const { toast } = useToast();
   const [updating, setUpdating] = useState(false);
+  const [showRemarksDialog, setShowRemarksDialog] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
+  const [remarks, setRemarks] = useState("");
+  
+  // Open remarks dialog when selecting "pendingApproval" status
+  const handleStatusSelect = (value: string) => {
+    if (value === "pendingApproval") {
+      setSelectedStatus(value);
+      setShowRemarksDialog(true);
+    } else {
+      handleStatusChange(product.id, value);
+    }
+  };
+  
+  // Submit status change with remarks
+  const handleRemarksSubmit = () => {
+    if (!selectedStatus || !product.id) return;
+    
+    handleStatusChange(product.id, selectedStatus, remarks);
+    setShowRemarksDialog(false);
+    setRemarks("");
+  };
 
   // Handle status change for a product
-  const handleStatusChange = async (productId: string | undefined, newStatus: string) => {
+  const handleStatusChange = async (productId: string | undefined, newStatus: string, note: string = "") => {
     if (!productId || !orderId) return;
     
     setUpdating(true);
@@ -53,20 +79,46 @@ const ProductStatusSelector = ({
   }
 
   return (
-    <Select
-      value={product[statusField] || ""}
-      onValueChange={(value) => handleStatusChange(product.id, value)}
-      disabled={updating}
-    >
-      <SelectTrigger className="w-[180px] bg-white">
-        <SelectValue placeholder="Update status" />
-      </SelectTrigger>
-      <SelectContent>
-        {statusOptions.map(option => (
-          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <>
+      <Select
+        value={product[statusField] || ""}
+        onValueChange={handleStatusSelect}
+        disabled={updating}
+      >
+        <SelectTrigger className="w-[180px] bg-card">
+          <SelectValue placeholder="Update status" />
+        </SelectTrigger>
+        <SelectContent>
+          {statusOptions.map(option => (
+            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      {/* Remarks Dialog */}
+      <Dialog open={showRemarksDialog} onOpenChange={setShowRemarksDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Send for Approval</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="remarks">Add remarks or notes (optional)</Label>
+              <Textarea
+                id="remarks"
+                placeholder="Add any notes about this product's status..."
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemarksDialog(false)}>Cancel</Button>
+            <Button onClick={handleRemarksSubmit}>Send for Approval</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

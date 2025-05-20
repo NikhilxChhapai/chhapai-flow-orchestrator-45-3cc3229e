@@ -26,7 +26,7 @@ const ProductWorkflowRow = ({
   const statusField = getStatusField(department);
 
   return (
-    <TableRow className={index % 2 === 0 ? "bg-white" : "bg-muted/10"}>
+    <TableRow className={index % 2 === 0 ? "bg-card" : "bg-muted/10"}>
       <TableCell className="font-medium text-foreground">{product.name}</TableCell>
       <TableCell className="text-foreground">{product.quantity}</TableCell>
       <TableCell className="flex items-center space-x-2">

@@ -74,7 +74,7 @@ const StatusChart = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', borderColor: 'var(--border)' }} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
