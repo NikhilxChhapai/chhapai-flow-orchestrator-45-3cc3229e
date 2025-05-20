@@ -8,7 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Clock, Filter, Plus, Search } from "lucide-react";
+import { Check, Clock, Filter, Plus, Search, Trash } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Task {
   id: number;
@@ -21,6 +23,7 @@ interface Task {
 }
 
 const Tasks = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCompleted, setShowCompleted] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([
@@ -89,6 +92,15 @@ const Tasks = () => {
   };
   
   const addTask = () => {
+    if (!newTask.title) {
+      toast({
+        title: "Error",
+        description: "Task title is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const id = Math.max(0, ...tasks.map(t => t.id)) + 1;
     setTasks([...tasks, { ...newTask, id }]);
     setNewTask({
@@ -98,6 +110,24 @@ const Tasks = () => {
       priority: 'medium',
       dueDate: '',
       assignedTo: ''
+    });
+    
+    toast({
+      title: "Task Created",
+      description: "New task has been created successfully"
+    });
+  };
+  
+  const deleteTask = (id: number) => {
+    setTasks(tasks.filter(task => task.id !== id));
+    
+    if (selectedTask?.id === id) {
+      setSelectedTask(null);
+    }
+    
+    toast({
+      title: "Task Deleted",
+      description: "Task has been deleted successfully"
     });
   };
   
@@ -271,84 +301,141 @@ const Tasks = () => {
                       <span className="text-xs text-muted-foreground">
                         Assigned to: {task.assignedTo}
                       </span>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-xs" 
-                            onClick={() => setSelectedTask(task)}>
-                            View Details
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          {selectedTask && (
-                            <>
-                              <DialogHeader>
-                                <div className="flex items-center justify-between">
-                                  <DialogTitle>{selectedTask.title}</DialogTitle>
-                                  <Badge className={priorityColors[selectedTask.priority]}>
-                                    {selectedTask.priority.charAt(0).toUpperCase() + selectedTask.priority.slice(1)}
-                                  </Badge>
-                                </div>
-                              </DialogHeader>
-                              <div className="space-y-4 py-4">
-                                <div>
-                                  <h4 className="text-sm font-medium mb-1">Description</h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    {selectedTask.description}
-                                  </p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <h4 className="text-sm font-medium mb-1">Due Date</h4>
-                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                      <Clock className="h-3.5 w-3.5" />
-                                      {formatDate(selectedTask.dueDate)}
-                                    </p>
+                      <div className="flex space-x-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20">
+                              <Trash className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this task? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteTask(task.id)}
+                                className="bg-red-500 text-white hover:bg-red-600"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-xs" 
+                              onClick={() => setSelectedTask(task)}>
+                              View Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            {selectedTask && (
+                              <>
+                                <DialogHeader>
+                                  <div className="flex items-center justify-between">
+                                    <DialogTitle>{selectedTask.title}</DialogTitle>
+                                    <Badge className={priorityColors[selectedTask.priority]}>
+                                      {selectedTask.priority.charAt(0).toUpperCase() + selectedTask.priority.slice(1)}
+                                    </Badge>
                                   </div>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
                                   <div>
-                                    <h4 className="text-sm font-medium mb-1">Assigned To</h4>
+                                    <h4 className="text-sm font-medium mb-1">Description</h4>
                                     <p className="text-sm text-muted-foreground">
-                                      {selectedTask.assignedTo}
+                                      {selectedTask.description}
                                     </p>
                                   </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="text-sm font-medium mb-1">Due Date</h4>
+                                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        {formatDate(selectedTask.dueDate)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <h4 className="text-sm font-medium mb-1">Assigned To</h4>
+                                      <p className="text-sm text-muted-foreground">
+                                        {selectedTask.assignedTo}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                      id="task-status"
+                                      checked={selectedTask.completed}
+                                      onCheckedChange={() => {
+                                        toggleTaskStatus(selectedTask.id);
+                                        setSelectedTask({
+                                          ...selectedTask,
+                                          completed: !selectedTask.completed
+                                        });
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor="task-status"
+                                      className="text-sm font-medium leading-none"
+                                    >
+                                      Mark as {selectedTask.completed ? "incomplete" : "complete"}
+                                    </label>
+                                  </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox 
-                                    id="task-status"
-                                    checked={selectedTask.completed}
-                                    onCheckedChange={() => {
+                                <DialogFooter className="flex justify-between">
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        className="text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20"
+                                      >
+                                        <Trash className="h-4 w-4 mr-2" />
+                                        Delete Task
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete this task? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                          onClick={() => deleteTask(selectedTask.id)}
+                                          className="bg-red-500 text-white hover:bg-red-600"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                  
+                                  <Button 
+                                    variant={selectedTask.completed ? "secondary" : "default"}
+                                    onClick={() => {
                                       toggleTaskStatus(selectedTask.id);
                                       setSelectedTask({
                                         ...selectedTask,
                                         completed: !selectedTask.completed
                                       });
                                     }}
-                                  />
-                                  <label
-                                    htmlFor="task-status"
-                                    className="text-sm font-medium leading-none"
                                   >
-                                    Mark as {selectedTask.completed ? "incomplete" : "complete"}
-                                  </label>
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button 
-                                  variant={selectedTask.completed ? "secondary" : "default"}
-                                  onClick={() => {
-                                    toggleTaskStatus(selectedTask.id);
-                                    setSelectedTask({
-                                      ...selectedTask,
-                                      completed: !selectedTask.completed
-                                    });
-                                  }}
-                                >
-                                  {selectedTask.completed ? "Mark as Incomplete" : "Mark as Complete"}
-                                </Button>
-                              </DialogFooter>
-                            </>
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                                    {selectedTask.completed ? "Mark as Incomplete" : "Mark as Complete"}
+                                  </Button>
+                                </DialogFooter>
+                              </>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </div>
                 </div>

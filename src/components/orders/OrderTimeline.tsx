@@ -47,7 +47,7 @@ const OrderTimeline = ({ timeline, formatStatus }: OrderTimelineProps) => {
         <CardDescription>Track the progress of your order</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative pl-8 border-l border-border space-y-6">
+        <div className="relative pl-10 border-l border-border space-y-8">
           {timeline && timeline.length > 0 ? (
             timeline.map((event: TimelineEvent, index: number) => {
               const Icon = getStatusIcon(event.status);
@@ -55,19 +55,19 @@ const OrderTimeline = ({ timeline, formatStatus }: OrderTimelineProps) => {
               return (
                 <div 
                   key={index} 
-                  className="relative"
+                  className="relative pb-2"
                 >
-                  <div className="absolute -left-[25px] top-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-primary" />
+                  <div className="absolute -left-[30px] top-0 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Icon className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="flex flex-col space-y-3 ml-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
                       <h4 className="text-base font-medium text-foreground">{formatStatus(event.status)}</h4>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {event.formattedDate}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground break-words">{event.note}</p>
+                    <p className="text-sm text-muted-foreground break-words mb-2">{event.note}</p>
                   </div>
                 </div>
               );

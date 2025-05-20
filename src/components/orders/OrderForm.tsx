@@ -67,9 +67,10 @@ const OrderForm = ({ isEditing = false, initialData = {}, orderId = "" }: OrderF
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleProductChange = (index: number, value: string) => {
+  // Updated to handle all product fields
+  const handleProductChange = (index: number, field: string, value: string | number) => {
     const updatedProducts = [...formData.products];
-    updatedProducts[index] = { ...updatedProducts[index], name: value };
+    updatedProducts[index] = { ...updatedProducts[index], [field]: value };
     setFormData((prev) => ({ ...prev, products: updatedProducts }));
   };
 
