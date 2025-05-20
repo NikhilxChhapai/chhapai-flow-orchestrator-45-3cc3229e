@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentOrders from "@/components/dashboard/RecentOrders";
@@ -8,8 +9,9 @@ import { Package, CheckCircle, Clock, CircleDollarSign, Users, PaintRoller, Laye
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { getOrdersWithRealTimeUpdates } from "@/lib/firebase";
+import { Order } from "@/lib/firebase/types";
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
@@ -17,13 +19,103 @@ const Dashboard = () => {
   const department = currentUser?.department || "Sales";
   const isMobile = useIsMobile();
   const [greeting, setGreeting] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    inProgress: 0,
+    completed: 0,
+    revenue: "₹0"
+  });
 
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good morning");
     else if (hour < 18) setGreeting("Good afternoon");
     else setGreeting("Good evening");
-  }, []);
+
+    // Load real-time orders data
+    const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
+      setOrders(fetchedOrders);
+      
+      // Calculate stats based on fetched orders
+      const total = fetchedOrders.length;
+      
+      const inProgress = fetchedOrders.filter(order => 
+        !order.status.startsWith("Completed") && 
+        order.status !== "Cancelled"
+      ).length;
+      
+      const completed = fetchedOrders.filter(order => 
+        order.status === "Completed" || 
+        order.status === "Dispatched"
+      ).length;
+      
+      // Calculate total revenue
+      const totalRevenue = fetchedOrders.reduce((sum, order) => sum + order.orderAmount, 0);
+      const formattedRevenue = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(totalRevenue);
+      
+      // Department-specific filtering
+      let departmentStats = {
+        total,
+        inProgress,
+        completed,
+        revenue: formattedRevenue
+      };
+      
+      if (role !== 'admin') {
+        // Filter orders for the current department
+        const deptOrders = fetchedOrders.filter(order => {
+          if (role === 'sales') {
+            return order.assignedDept === 'sales';
+          } else if (role === 'design') {
+            return order.assignedDept === 'design' || order.status.startsWith('Design_');
+          } else if (role === 'prepress') {
+            return order.assignedDept === 'prepress' || order.status.startsWith('Prepress_');
+          } else if (role === 'production') {
+            return order.assignedDept === 'production' || order.status.startsWith('Production_');
+          }
+          return false;
+        });
+        
+        const deptTotal = deptOrders.length;
+        const deptInProgress = deptOrders.filter(order => 
+          !order.status.startsWith("Completed") && 
+          order.status !== "Cancelled"
+        ).length;
+        const deptCompleted = deptOrders.filter(order => 
+          order.status === "Completed" || 
+          order.status === "Dispatched" ||
+          (role === 'design' && order.status.startsWith('Design_Approved')) ||
+          (role === 'prepress' && order.status.startsWith('Prepress_Approved')) ||
+          (role === 'production' && order.status === 'Production_Completed')
+        ).length;
+        
+        const deptRevenue = deptOrders.reduce((sum, order) => sum + order.orderAmount, 0);
+        const formattedDeptRevenue = new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          maximumFractionDigits: 0
+        }).format(deptRevenue);
+        
+        departmentStats = {
+          total: deptTotal,
+          inProgress: deptInProgress,
+          completed: deptCompleted,
+          revenue: formattedDeptRevenue
+        };
+      }
+      
+      setStats(departmentStats);
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [role]);
 
   // We'll show different stats based on user role
   const isAdminOrSales = role === "admin" || role === "sales";
@@ -39,53 +131,6 @@ const Dashboard = () => {
       default: return <Users className="h-6 w-6 text-primary" />;
     }
   };
-
-  // Department-specific stat values
-  const getDepartmentStats = () => {
-    switch (role) {
-      case "admin":
-        return {
-          total: 60,
-          inProgress: 24,
-          completed: 32,
-          revenue: "₹9,45,000"
-        };
-      case "sales":
-        return {
-          total: 45,
-          inProgress: 18,
-          completed: 25,
-          revenue: "₹8,25,000"
-        };
-      case "design":
-        return {
-          total: 38,
-          inProgress: 15,
-          completed: 22
-        };
-      case "prepress":
-        return {
-          total: 32,
-          inProgress: 14,
-          completed: 18
-        };
-      case "production":
-        return {
-          total: 28,
-          inProgress: 12,
-          completed: 16
-        };
-      default:
-        return {
-          total: 30,
-          inProgress: 12,
-          completed: 18,
-          revenue: "₹5,50,000"
-        };
-    }
-  };
-
-  const stats = getDepartmentStats();
 
   return (
     <div className="space-y-6 animate-fade-in">

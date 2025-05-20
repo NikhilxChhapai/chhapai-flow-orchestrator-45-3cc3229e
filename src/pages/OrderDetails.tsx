@@ -4,7 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { Pencil, ArrowLeft, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus, updateOrder } from "@/lib/mockData";
+import { getOrderWithRealTimeUpdates, updateOrderStatus, assignOrderToDepartment, updatePaymentStatus } from "@/lib/firebase";
 import { Order, OrderStatus, PaymentStatus, TimelineEvent } from "@/lib/firebase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import OrderAccessControl from "@/components/orders/OrderAccessControl";

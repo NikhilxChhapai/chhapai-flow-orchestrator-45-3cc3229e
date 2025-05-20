@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
@@ -9,6 +9,7 @@ import {
   ChartTooltipContent 
 } from "@/components/ui/chart";
 import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -24,44 +25,101 @@ import {
   Pie,
   Cell
 } from "recharts";
-
-// Mock data for various charts
-const revenueData = [
-  { month: "Jan", revenue: 65000 },
-  { month: "Feb", revenue: 72000 },
-  { month: "Mar", revenue: 85000 },
-  { month: "Apr", revenue: 78000 },
-  { month: "May", revenue: 92000 },
-  { month: "Jun", revenue: 110000 },
-];
-
-const ordersData = [
-  { month: "Jan", value: 120 },
-  { month: "Feb", value: 135 },
-  { month: "Mar", value: 155 },
-  { month: "Apr", value: 142 },
-  { month: "May", value: 168 },
-  { month: "Jun", value: 180 },
-];
-
-const categoryData = [
-  { name: "Packaging", value: 35 },
-  { name: "Labels", value: 25 },
-  { name: "Business Cards", value: 20 },
-  { name: "Brochures", value: 15 },
-  { name: "Other", value: 5 },
-];
+import { getOrdersWithRealTimeUpdates } from "@/lib/firebase";
+import { Order } from "@/lib/firebase/types";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
 const Analytics = () => {
   const [date, setDate] = useState({
-    from: new Date(2023, 0, 1),
+    from: new Date(new Date().setMonth(new Date().getMonth() - 6)),
     to: new Date(),
   });
   const [activeTab, setActiveTab] = useState("revenue");
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
+      setOrders(fetchedOrders);
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Calculate revenue data by month
+  const calculateRevenueData = () => {
+    const months: { [key: string]: number } = {};
+    const filteredOrders = orders.filter(order => {
+      if (!order.createdAt || !date.from || !date.to) return false;
+      const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt.seconds * 1000);
+      return orderDate >= date.from && orderDate <= date.to;
+    });
+    
+    filteredOrders.forEach(order => {
+      const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt.seconds * 1000);
+      const monthYear = format(orderDate, 'MMM yyyy');
+      months[monthYear] = (months[monthYear] || 0) + order.orderAmount;
+    });
+    
+    return Object.keys(months).map(month => ({
+      month,
+      revenue: months[month]
+    }));
+  };
+
+  // Calculate orders count by month
+  const calculateOrdersData = () => {
+    const months: { [key: string]: number } = {};
+    const filteredOrders = orders.filter(order => {
+      if (!order.createdAt || !date.from || !date.to) return false;
+      const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt.seconds * 1000);
+      return orderDate >= date.from && orderDate <= date.to;
+    });
+    
+    filteredOrders.forEach(order => {
+      const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt.seconds * 1000);
+      const monthYear = format(orderDate, 'MMM yyyy');
+      months[monthYear] = (months[monthYear] || 0) + 1;
+    });
+    
+    return Object.keys(months).map(month => ({
+      month,
+      value: months[month]
+    }));
+  };
+
+  // Calculate category distribution
+  const calculateCategoryData = () => {
+    const categories: { [key: string]: number } = {};
+    
+    orders.forEach(order => {
+      order.products.forEach(product => {
+        const category = product.name.split(' ')[0]; // Using the first word as category for demo
+        categories[category] = (categories[category] || 0) + 1;
+      });
+    });
+    
+    return Object.keys(categories).map(name => ({
+      name,
+      value: categories[name]
+    }));
+  };
+
+  const revenueData = calculateRevenueData();
+  const ordersData = calculateOrdersData();
+  const categoryData = calculateCategoryData();
 
   const formatCurrency = (value: number) => `₹${(value / 1000).toFixed(0)}k`;
+  
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 flex justify-center items-center h-96">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto p-4 space-y-6">

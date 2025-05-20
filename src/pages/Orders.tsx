@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
-import { getOrdersWithRealTimeUpdates } from "@/lib/mockData"; // Updated import
+import { getOrdersWithRealTimeUpdates } from "@/lib/firebase"; 
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,17 +14,7 @@ import OrdersTable from "@/components/orders/OrdersTable";
 import OrdersMobileView from "@/components/orders/OrdersMobileView";
 import OrdersPagination from "@/components/orders/OrdersPagination";
 import DeleteOrderDialog from "@/components/orders/DeleteOrderDialog";
-
-type Order = {
-  id: string;
-  orderNumber: string;
-  clientName: string;
-  createdAt: any; // Support both Firebase and Mock Timestamp
-  status: string;
-  orderAmount: number;
-  products: any[];
-  deliveryAddress: string;
-};
+import { Order } from "@/lib/firebase/types";
 
 const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -36,7 +27,7 @@ const Orders = () => {
   const { toast } = useToast();
   
   useEffect(() => {
-    // Use our mock data service instead of Firestore
+    // Use Firebase data service
     const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
       let filteredOrders = fetchedOrders;
       
@@ -60,8 +51,10 @@ const Orders = () => {
   );
   
   const formatDate = (timestamp: any) => {
-    if (!timestamp || !timestamp.toDate) return "N/A";
-    return format(timestamp.toDate(), "MMM d, yyyy");
+    if (!timestamp) return "N/A";
+    return timestamp.toDate ? 
+      format(timestamp.toDate(), "MMM d, yyyy") :
+      format(new Date(timestamp.seconds * 1000), "MMM d, yyyy");
   };
   
   const formatCurrency = (amount: number) => {
@@ -109,11 +102,18 @@ const Orders = () => {
     });
   };
 
-  // Mock pagination 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / 10));
+  // Pagination 
+  const ordersPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPerPage));
+  
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+  
+  // Get current orders for pagination
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -149,7 +149,7 @@ const Orders = () => {
                 </TableHeader>
                 <TableBody>
                   <OrdersTable
-                    orders={filteredOrders}
+                    orders={currentOrders}
                     formatDate={formatDate}
                     formatCurrency={formatCurrency}
                     getStatusClass={getStatusClass}
@@ -164,7 +164,7 @@ const Orders = () => {
           {/* Orders Cards (mobile) */}
           <div className="md:hidden">
             <OrdersMobileView
-              orders={filteredOrders}
+              orders={currentOrders}
               formatDate={formatDate}
               formatCurrency={formatCurrency}
               getStatusClass={getStatusClass}

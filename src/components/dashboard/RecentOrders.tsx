@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { 
   Table, 
   TableBody, 
@@ -12,45 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-// Mock data for the table
-const mockOrders = [
-  {
-    id: "ORD-2023-001",
-    client: "ABC Enterprises",
-    amount: "₹12,500",
-    status: "Design_InProgress",
-    date: "2023-05-14",
-  },
-  {
-    id: "ORD-2023-002",
-    client: "XYZ Corp",
-    amount: "₹8,750",
-    status: "Prepress_Approved",
-    date: "2023-05-13",
-  },
-  {
-    id: "ORD-2023-003",
-    client: "123 Industries",
-    amount: "₹15,200",
-    status: "Production_Printing",
-    date: "2023-05-12",
-  },
-  {
-    id: "ORD-2023-004",
-    client: "Global Tech",
-    amount: "₹5,800",
-    status: "ReadyToDispatch",
-    date: "2023-05-11",
-  },
-  {
-    id: "ORD-2023-005",
-    client: "Local Business",
-    amount: "₹3,200",
-    status: "Design_AwaitingApproval",
-    date: "2023-05-10",
-  },
-];
+import { getOrdersWithRealTimeUpdates } from "@/lib/firebase";
+import { Order } from "@/lib/firebase/types";
+import { Loader2 } from "lucide-react";
 
 // Function to determine badge color based on status
 const getStatusBadge = (status: string) => {
@@ -70,9 +35,41 @@ const formatStatus = (status: string) => {
     .trim();
 };
 
+// Format date function
+const formatDate = (timestamp: any) => {
+  if (!timestamp || !timestamp.toDate) return "N/A";
+  return new Date(timestamp.toDate()).toLocaleDateString();
+};
+
 const RecentOrders = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
+      // Only show the 5 most recent orders
+      const recentOrders = fetchedOrders.slice(0, 5);
+      setOrders(recentOrders);
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+  
+  if (loading) {
+    return (
+      <Card className="col-span-full">
+        <CardHeader>
+          <CardTitle>Recent Orders</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card className="col-span-full">
@@ -93,28 +90,36 @@ const RecentOrders = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium whitespace-nowrap">{order.id}</TableCell>
-                  <TableCell className="max-w-[180px] truncate">{order.client}</TableCell>
-                  {!isMobile && <TableCell>{order.amount}</TableCell>}
-                  <TableCell>
-                    <Badge className={getStatusBadge(order.status)}>
-                      {isMobile ? formatStatus(order.status).split(' ')[0] : formatStatus(order.status)}
-                    </Badge>
-                  </TableCell>
-                  {!isMobile && <TableCell>{order.date}</TableCell>}
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => navigate(`/order/${order.id}`)}
-                    >
-                      View
-                    </Button>
+              {orders.length > 0 ? (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium whitespace-nowrap">{order.orderNumber}</TableCell>
+                    <TableCell className="max-w-[180px] truncate">{order.clientName}</TableCell>
+                    {!isMobile && <TableCell>₹{order.orderAmount.toLocaleString()}</TableCell>}
+                    <TableCell>
+                      <Badge className={getStatusBadge(order.status)}>
+                        {isMobile ? formatStatus(order.status).split(' ')[0] : formatStatus(order.status)}
+                      </Badge>
+                    </TableCell>
+                    {!isMobile && <TableCell>{formatDate(order.createdAt)}</TableCell>}
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => navigate(`/order/${order.id}`)}
+                      >
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={isMobile ? 4 : 6} className="text-center py-4">
+                    No orders found
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>
