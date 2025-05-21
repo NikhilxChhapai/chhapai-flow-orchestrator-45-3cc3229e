@@ -26,13 +26,24 @@ const ProductWorkflowRow = ({
   assignedBy
 }: ProductWorkflowRowProps) => {
   const statusField = getStatusField(department);
+  const currentStatus = product[statusField];
+  
+  // Check if product has pending approval
+  const hasPendingApproval = currentStatus === "pendingApproval";
 
   return (
     <TableRow className={index % 2 === 0 ? "bg-card" : "bg-muted/30"}>
       <TableCell className="font-medium text-foreground">{product.name}</TableCell>
       <TableCell className="text-foreground">{product.quantity}</TableCell>
       <TableCell className="flex items-center space-x-2">
-        <span className="text-foreground font-medium">{formatStatus(product[statusField])}</span>
+        <span className="text-foreground font-medium">
+          {formatStatus(product[statusField])}
+          {hasPendingApproval && (
+            <span className="text-xs ml-2 text-amber-600 block">
+              Waiting for approval
+            </span>
+          )}
+        </span>
         <ProductStatusIndicator status={product[statusField]} />
       </TableCell>
       

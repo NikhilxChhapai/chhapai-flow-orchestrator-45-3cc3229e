@@ -129,7 +129,7 @@ const OrderDetailTabs = ({
           <div className="bg-white rounded-md shadow-sm border p-6">
             <OrderProducts 
               products={order.products} 
-              showFinancialDetails={canViewFinancialDetails} 
+              showPricing={canViewFinancialDetails} 
             />
           </div>
         </TabsContent>
@@ -143,7 +143,7 @@ const OrderDetailTabs = ({
               department={order.assignedDept}
               status={order.status}
               userRole={userRole}
-              assignedBy={order.createdByName}
+              assignedBy={order.assignedByName || order.createdByName}
             />
           </div>
         </TabsContent>

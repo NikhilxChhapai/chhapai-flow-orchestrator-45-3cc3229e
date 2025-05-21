@@ -36,9 +36,12 @@ const ProductStatusSelector = ({
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
   const [remarks, setRemarks] = useState("");
   
-  // Open remarks dialog when selecting "pendingApproval" status
+  // Disable if product is already pending approval
+  const isPendingApproval = product[statusField] === "pendingApproval";
+  
+  // Open remarks dialog when selecting special statuses
   const handleStatusSelect = (value: string) => {
-    if (value === "pendingApproval") {
+    if (value === "pendingApproval" || value === "needsRevision") {
       setSelectedStatus(value);
       setShowRemarksDialog(true);
     } else {
@@ -46,18 +49,25 @@ const ProductStatusSelector = ({
     }
   };
   
+  // Dialog title based on selected status
+  const getDialogTitle = () => {
+    if (selectedStatus === "pendingApproval") return "Send for Approval";
+    if (selectedStatus === "needsRevision") return "Request Revisions";
+    return "Add Notes";
+  };
+  
   // Submit status change with remarks
   const handleRemarksSubmit = () => {
     if (!selectedStatus || !product.id) return;
     
     // Include current user info in the approval request
-    const assignedByInfo = currentUser ? {
+    const userInfo = currentUser ? {
       userId: currentUser.uid,
       userName: currentUser.displayName || currentUser.email || "Unknown User",
       role: currentUser.role || "unknown"
     } : undefined;
     
-    handleStatusChange(product.id, selectedStatus, remarks, assignedByInfo);
+    handleStatusChange(product.id, selectedStatus, remarks, userInfo);
     setShowRemarksDialog(false);
     setRemarks("");
   };
@@ -67,7 +77,7 @@ const ProductStatusSelector = ({
     productId: string | undefined, 
     newStatus: string, 
     note: string = "", 
-    assignInfo?: { userId: string; userName: string; role: string }
+    userInfo?: { userId: string; userName: string; role: string }
   ) => {
     if (!productId || !orderId) return;
     
@@ -80,14 +90,28 @@ const ProductStatusSelector = ({
         statusField,
         newStatus,
         note,
-        assignInfo
+        userInfo
       );
+      
+      let successMessage = "";
+      
+      switch (newStatus) {
+        case "pendingApproval":
+          successMessage = "Product has been sent for approval.";
+          break;
+        case "approved":
+          successMessage = "Product has been approved.";
+          break;
+        case "needsRevision":
+          successMessage = "Product has been sent back for revisions.";
+          break;
+        default:
+          successMessage = `Product status has been updated to ${newStatus}.`;
+      }
       
       toast({
         title: "Status Updated",
-        description: newStatus === "pendingApproval" 
-          ? "Product has been sent for approval." 
-          : `Product status has been updated to ${newStatus}.`
+        description: successMessage
       });
     } catch (error) {
       console.error("Error updating product status:", error);
@@ -101,8 +125,17 @@ const ProductStatusSelector = ({
     }
   };
 
-  if (statusOptions.length === 0) {
-    return <span className="text-sm text-muted-foreground">No actions available</span>;
+  // If no status options or pending approval (and not admin), disable selector
+  if ((statusOptions.length === 0) || (isPendingApproval && userRole !== 'admin')) {
+    return (
+      <Select disabled>
+        <SelectTrigger className="w-[180px] bg-card cursor-not-allowed opacity-70">
+          <SelectValue>
+            {isPendingApproval ? "Pending Approval" : "No Actions Available"}
+          </SelectValue>
+        </SelectTrigger>
+      </Select>
+    );
   }
 
   return (
@@ -126,22 +159,30 @@ const ProductStatusSelector = ({
       <Dialog open={showRemarksDialog} onOpenChange={setShowRemarksDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Send for Approval</DialogTitle>
+            <DialogTitle>{getDialogTitle()}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="remarks">Add remarks or notes (optional)</Label>
+              <Label htmlFor="remarks">Add remarks or notes {selectedStatus === "pendingApproval" ? "(optional)" : "(required)"}</Label>
               <Textarea
                 id="remarks"
-                placeholder="Add any notes about this product's status..."
+                placeholder={selectedStatus === "pendingApproval" 
+                  ? "Add any notes about this product's status..." 
+                  : "Please specify what needs to be revised..."}
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
+                required={selectedStatus === "needsRevision"}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRemarksDialog(false)}>Cancel</Button>
-            <Button onClick={handleRemarksSubmit}>Send for Approval</Button>
+            <Button 
+              onClick={handleRemarksSubmit}
+              disabled={selectedStatus === "needsRevision" && !remarks}
+            >
+              {selectedStatus === "pendingApproval" ? "Send for Approval" : "Submit Feedback"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

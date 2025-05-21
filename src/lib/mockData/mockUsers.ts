@@ -6,45 +6,81 @@ import { UserData, DepartmentType } from './mockTypes';
 const mockUsers: UserData[] = [
   {
     uid: "admin-user-1",
-    email: "admin@chhapai.com",
-    displayName: "Admin User",
+    email: "hi@chhapai.in",
+    displayName: "Rajesh Ji",
     role: "admin",
     department: "admin",
     createdAt: MockTimestamp.fromDate(new Date("2025-01-01"))
   },
   {
     uid: "sales-user-1",
-    email: "sales@chhapai.com",
-    displayName: "Sales User",
+    email: "chd@chhapai.in",
+    displayName: "Nikhil",
     role: "sales",
     department: "sales",
     createdAt: MockTimestamp.fromDate(new Date("2025-01-02"))
   },
   {
-    uid: "design-user-1",
-    email: "design@chhapai.com",
-    displayName: "Design User",
-    role: "design",
-    department: "design",
+    uid: "sales-user-2",
+    email: "vanika@chhapai.in",
+    displayName: "Vanika",
+    role: "sales",
+    department: "sales",
     createdAt: MockTimestamp.fromDate(new Date("2025-01-03"))
   },
   {
-    uid: "prepress-user-1",
-    email: "prepress@chhapai.com",
-    displayName: "Prepress User",
-    role: "prepress",
-    department: "prepress",
+    uid: "sales-user-3",
+    email: "saleschd@chhapai.in",
+    displayName: "Harish",
+    role: "sales",
+    department: "sales",
     createdAt: MockTimestamp.fromDate(new Date("2025-01-04"))
   },
   {
+    uid: "sales-user-4",
+    email: "rohini@chhapai.in",
+    displayName: "Rohini",
+    role: "sales",
+    department: "sales",
+    createdAt: MockTimestamp.fromDate(new Date("2025-01-05"))
+  },
+  {
+    uid: "design-user-1",
+    email: "smo@chhapai.in",
+    displayName: "Hritik",
+    role: "design",
+    department: "design",
+    createdAt: MockTimestamp.fromDate(new Date("2025-01-06"))
+  },
+  {
+    uid: "prepress-user-1",
+    email: "orders@chhapai.in",
+    displayName: "Yashpal Ji",
+    role: "prepress",
+    department: "prepress",
+    createdAt: MockTimestamp.fromDate(new Date("2025-01-07"))
+  },
+  {
     uid: "production-user-1",
-    email: "production@chhapai.com",
-    displayName: "Production User",
+    email: "sanjay@chhapai.in",
+    displayName: "Sanjay",
     role: "production",
     department: "production",
-    createdAt: MockTimestamp.fromDate(new Date("2025-01-05"))
+    createdAt: MockTimestamp.fromDate(new Date("2025-01-08"))
   }
 ];
+
+// Define password map for mock authentication
+const mockPasswords: Record<string, string> = {
+  "hi@chhapai.in": "Admin@123",
+  "chd@chhapai.in": "Nikhil@123",
+  "vanika@chhapai.in": "vanika@123",
+  "saleschd@chhapai.in": "harish@123",
+  "rohini@chhapai.in": "rohini@123", 
+  "smo@chhapai.in": "Hritik@123",
+  "orders@chhapai.in": "Yashpal@123",
+  "sanjay@chhapai.in": "sanjay@123"
+};
 
 // Mock auth user class
 export class MockUser {
@@ -68,8 +104,9 @@ export const mockAuth = {
   // Log in user
   signInWithEmailAndPassword: async (email: string, password: string) => {
     const user = mockUsers.find(u => u.email === email);
+    const correctPassword = mockPasswords[email];
     
-    if (!user || password !== "password") {
+    if (!user || password !== correctPassword) {
       throw new Error("Invalid email or password");
     }
     

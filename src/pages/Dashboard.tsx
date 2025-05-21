@@ -1,359 +1,187 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import StatCard from "@/components/dashboard/StatCard";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getOrdersWithRealTimeUpdates, getApprovalsPendingByUser } from "@/lib/mockData";
+import { DepartmentType } from "@/lib/firebase/types";
+import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+// Import components
+import WelcomeMessage from "@/components/dashboard/WelcomeMessage";
+import SalesSummary from "@/components/dashboard/SalesSummary";
+import OrderOverview from "@/components/dashboard/OrderOverview";
 import RecentOrders from "@/components/dashboard/RecentOrders";
-import StatusChart from "@/components/dashboard/StatusChart";
-import RevenueChart from "@/components/dashboard/RevenueChart";
-import { Package, CheckCircle, Clock, CircleDollarSign, Users, PaintRoller, Layers, Briefcase } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { getOrdersWithRealTimeUpdates } from "@/lib/firebase";
-import { Order } from "@/lib/firebase/types";
+import DepartmentDashboard from "@/components/dashboard/DepartmentDashboard";
 
 const Dashboard = () => {
-  const { currentUser } = useAuth();
-  const role = currentUser?.role || "sales";
-  const department = currentUser?.department || "Sales";
-  const isMobile = useIsMobile();
-  const [greeting, setGreeting] = useState("");
-  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    inProgress: 0,
-    completed: 0,
-    revenue: "₹0"
-  });
-
+  const [orders, setOrders] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const { currentUser } = useAuth();
+  
+  // Get user role and department
+  const userRole = currentUser?.role || 'sales';
+  const userDepartment = currentUser?.department || 'sales';
+  const userName = currentUser?.displayName || '';
+  
+  // Determine if user can see financial details
+  const canViewFinancialDetails = userRole === 'admin' || userRole === 'sales';
+  
+  // Fetch orders
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-
-    // Load real-time orders data
     const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
       setOrders(fetchedOrders);
-      
-      // Calculate stats based on fetched orders
-      const total = fetchedOrders.length;
-      
-      const inProgress = fetchedOrders.filter(order => 
-        !order.status.startsWith("Completed") && 
-        order.status !== "Cancelled"
-      ).length;
-      
-      const completed = fetchedOrders.filter(order => 
-        order.status === "Completed" || 
-        order.status === "Dispatched"
-      ).length;
-      
-      // Calculate total revenue
-      const totalRevenue = fetchedOrders.reduce((sum, order) => sum + order.orderAmount, 0);
-      const formattedRevenue = new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-      }).format(totalRevenue);
-      
-      // Department-specific filtering
-      let departmentStats = {
-        total,
-        inProgress,
-        completed,
-        revenue: formattedRevenue
-      };
-      
-      if (role !== 'admin') {
-        // Filter orders for the current department
-        const deptOrders = fetchedOrders.filter(order => {
-          if (role === 'sales') {
-            return order.assignedDept === 'sales';
-          } else if (role === 'design') {
-            return order.assignedDept === 'design' || order.status.startsWith('Design_');
-          } else if (role === 'prepress') {
-            return order.assignedDept === 'prepress' || order.status.startsWith('Prepress_');
-          } else if (role === 'production') {
-            return order.assignedDept === 'production' || order.status.startsWith('Production_');
-          }
-          return false;
-        });
-        
-        const deptTotal = deptOrders.length;
-        const deptInProgress = deptOrders.filter(order => 
-          !order.status.startsWith("Completed") && 
-          order.status !== "Cancelled"
-        ).length;
-        const deptCompleted = deptOrders.filter(order => 
-          order.status === "Completed" || 
-          order.status === "Dispatched" ||
-          (role === 'design' && order.status.startsWith('Design_Approved')) ||
-          (role === 'prepress' && order.status.startsWith('Prepress_Approved')) ||
-          (role === 'production' && order.status === 'Production_Completed')
-        ).length;
-        
-        const deptRevenue = deptOrders.reduce((sum, order) => sum + order.orderAmount, 0);
-        const formattedDeptRevenue = new Intl.NumberFormat('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          maximumFractionDigits: 0
-        }).format(deptRevenue);
-        
-        departmentStats = {
-          total: deptTotal,
-          inProgress: deptInProgress,
-          completed: deptCompleted,
-          revenue: formattedDeptRevenue
-        };
-      }
-      
-      setStats(departmentStats);
       setLoading(false);
     });
     
+    // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [role]);
-
-  // We'll show different stats based on user role
-  const isAdminOrSales = role === "admin" || role === "sales";
-
-  // Get the department icon
-  const getDepartmentIcon = () => {
-    switch (role) {
-      case "admin": return <Users className="h-6 w-6 text-primary" />;
-      case "sales": return <Briefcase className="h-6 w-6 text-primary" />;
-      case "design": return <PaintRoller className="h-6 w-6 text-primary" />;
-      case "prepress": return <Layers className="h-6 w-6 text-primary" />;
-      case "production": return <Package className="h-6 w-6 text-primary" />;
-      default: return <Users className="h-6 w-6 text-primary" />;
+  }, []);
+  
+  // Fetch pending approvals
+  useEffect(() => {
+    if (currentUser?.uid) {
+      const fetchPendingApprovals = async () => {
+        try {
+          const approvals = await getApprovalsPendingByUser(currentUser.uid);
+          setPendingApprovals(approvals);
+        } catch (error) {
+          console.error("Error fetching pending approvals:", error);
+        }
+      };
+      
+      fetchPendingApprovals();
     }
-  };
+  }, [currentUser]);
+  
+  // If loading, show loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[500px]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
+  // For design/prepress/production users, show department-specific dashboard
+  if (userRole === 'design' || userRole === 'prepress' || userRole === 'production') {
+    return (
+      <DepartmentDashboard 
+        userRole={userRole} 
+        department={userRole as DepartmentType} 
+        userName={userName}
+      />
+    );
+  }
+  
+  // For admin/sales users, show the standard dashboard
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Welcome header with department badge */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting},</h1>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">
-              {currentUser?.displayName || "User"}!
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            {getDepartmentIcon()}
-            <Badge variant="outline" className="text-sm font-medium">
-              {department}
-            </Badge>
-          </div>
-        </div>
-        
-        {/* Department-specific action button */}
-        {role === "admin" && (
-          <Card className="w-full md:w-auto mt-4 md:mt-0">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Admin Controls</p>
-                <p className="text-sm text-muted-foreground">Manage your workflow</p>
-              </div>
-              <Badge className="ml-2 bg-primary hover:bg-primary/90">
-                <a href="/admin/panel">Open Panel</a>
-              </Badge>
-            </CardContent>
-          </Card>
-        )}
-        
-        {role === "sales" && (
-          <Card className="w-full md:w-auto mt-4 md:mt-0">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Sales Dashboard</p>
-                <p className="text-sm text-muted-foreground">Track your orders</p>
-              </div>
-              <Badge className="ml-2 bg-primary hover:bg-primary/90">
-                <a href="/orders/create">New Order</a>
-              </Badge>
-            </CardContent>
-          </Card>
-        )}
-        
-        {role !== "admin" && role !== "sales" && (
-          <Card className="w-full md:w-auto mt-4 md:mt-0">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{department} Dashboard</p>
-                <p className="text-sm text-muted-foreground">View your tasks</p>
-              </div>
-              <Badge className="ml-2 bg-primary hover:bg-primary/90">
-                <a href="/tasks">My Tasks</a>
-              </Badge>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Department-specific alert */}
-      <Alert className="bg-card border-primary/20">
-        <AlertTitle className="flex items-center text-primary">
-          {getDepartmentIcon()}
-          <span className="ml-2">{department} Department Overview</span>
-        </AlertTitle>
-        <AlertDescription>
-          {role === "admin" && "View and manage all departments and operations across the print workflow."}
-          {role === "sales" && "Track your client orders and manage customer relationships."}
-          {role === "design" && "Monitor design tasks and approve client artwork."}
-          {role === "prepress" && "Track file preparations and plate-making tasks."}
-          {role === "production" && "Manage print production and finishing operations."}
-        </AlertDescription>
-      </Alert>
-
-      {/* Stat cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Orders"
-          value={stats.total.toString()}
-          icon={<Package className="h-4 w-4" />}
-          description={isAdminOrSales ? "Across all departments" : "Assigned to you"}
-          trend={{ value: 12, isPositive: true }}
-        />
-        <StatCard
-          title="In Progress"
-          value={stats.inProgress.toString()}
-          icon={<Clock className="h-4 w-4" />}
-          description="Currently being processed"
-          trend={{ value: 8, isPositive: true }}
-        />
-        <StatCard
-          title="Completed"
-          value={stats.completed.toString()}
-          icon={<CheckCircle className="h-4 w-4" />}
-          description="Successfully delivered"
-          trend={{ value: 18, isPositive: true }}
-        />
-        {isAdminOrSales && (
-          <StatCard
-            title="Total Revenue"
-            value={stats.revenue || "₹0"}
-            icon={<CircleDollarSign className="h-4 w-4" />}
-            description="This month"
-            trend={{ value: 5, isPositive: true }}
-          />
-        )}
-      </div>
-
-      {/* Department-specific metrics */}
-      {role === "design" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Design Metrics</CardTitle>
-            <CardDescription>
-              Current design workload and performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Artwork Approval Rate
-                </p>
-                <p className="text-2xl font-bold">86%</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +4% from last month
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Average Design Time
-                </p>
-                <p className="text-2xl font-bold">2.3 days</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  -0.5 days from last month
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {role === "prepress" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Prepress Metrics</CardTitle>
-            <CardDescription>
-              Current prepress workload and performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  File Processing Rate
-                </p>
-                <p className="text-2xl font-bold">92%</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +2% from last month
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Average Prepress Time
-                </p>
-                <p className="text-2xl font-bold">1.8 days</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  -0.3 days from last month
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {role === "production" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Production Metrics</CardTitle>
-            <CardDescription>
-              Current production workload and performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Machine Utilization
-                </p>
-                <p className="text-2xl font-bold">78%</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +5% from last month
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Delivery On-Time Rate
-                </p>
-                <p className="text-2xl font-bold">94%</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +2% from last month
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Charts for admin/sales */}
-      {isAdminOrSales && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <StatusChart />
-          <RevenueChart />
+    <div className="space-y-6">
+      <WelcomeMessage userName={currentUser?.displayName || ''} role={userRole} />
+      
+      {/* Sales summary for admin/sales only */}
+      {canViewFinancialDetails && (
+        <div className="grid gap-6 md:grid-cols-3">
+          <SalesSummary orders={orders} />
         </div>
       )}
-
-      {/* Recent orders - shown to all roles but filtered for non-admin/sales */}
-      <RecentOrders />
+      
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+          {pendingApprovals.length > 0 && (
+            <TabsTrigger value="approvals" className="relative">
+              Approvals
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                {pendingApprovals.length}
+              </span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <OrderOverview orders={orders} showAmount={canViewFinancialDetails} />
+          <Card>
+            <CardContent className="p-6">
+              <RecentOrders orders={orders} limit={5} showAmount={canViewFinancialDetails} />
+              
+              <div className="mt-4 text-center">
+                <Link
+                  to="/orders"
+                  className="text-sm text-primary hover:underline"
+                >
+                  View all orders →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="orders">
+          <Card>
+            <CardContent className="p-6">
+              <RecentOrders orders={orders} limit={10} showAmount={canViewFinancialDetails} />
+              
+              <div className="mt-4 text-center">
+                <Link
+                  to="/orders"
+                  className="text-sm text-primary hover:underline"
+                >
+                  View all orders →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {pendingApprovals.length > 0 && (
+          <TabsContent value="approvals">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Pending Approvals</h3>
+                <div className="space-y-4">
+                  {pendingApprovals.map((approval: any) => (
+                    <div key={approval.id} className="border rounded-md p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">{approval.productName}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Order #{approval.orderNumber} • Requested by {approval.requestedBy?.userName || "Unknown"}
+                          </p>
+                          <p className="text-sm text-amber-600 mt-1">
+                            {approval.department.charAt(0).toUpperCase() + approval.department.slice(1)} approval pending
+                          </p>
+                          {approval.description && (
+                            <p className="text-sm mt-2 italic">"{approval.description}"</p>
+                          )}
+                        </div>
+                        <Link
+                          to={`/orders/${approval.orderId}`}
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Review →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-4 text-center">
+                  <Link
+                    to="/approvals"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View all approvals →
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 };
