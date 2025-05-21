@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { OrderProduct, DepartmentType } from "@/lib/firebase/types";
 import { updateProductStatus } from "@/lib/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProductStatusSelectorProps {
   product: OrderProduct;
@@ -15,6 +16,8 @@ interface ProductStatusSelectorProps {
   department: DepartmentType;
   statusOptions: { value: string; label: string }[];
   statusField: "designStatus" | "prepressStatus" | "productionStatus";
+  userRole: string;
+  assignedBy?: string;
 }
 
 const ProductStatusSelector = ({
@@ -23,8 +26,11 @@ const ProductStatusSelector = ({
   department,
   statusOptions,
   statusField,
+  userRole,
+  assignedBy,
 }: ProductStatusSelectorProps) => {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [updating, setUpdating] = useState(false);
   const [showRemarksDialog, setShowRemarksDialog] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
@@ -44,23 +50,44 @@ const ProductStatusSelector = ({
   const handleRemarksSubmit = () => {
     if (!selectedStatus || !product.id) return;
     
-    handleStatusChange(product.id, selectedStatus, remarks);
+    // Include current user info in the approval request
+    const assignedByInfo = currentUser ? {
+      userId: currentUser.uid,
+      userName: currentUser.displayName || currentUser.email || "Unknown User",
+      role: currentUser.role || "unknown"
+    } : undefined;
+    
+    handleStatusChange(product.id, selectedStatus, remarks, assignedByInfo);
     setShowRemarksDialog(false);
     setRemarks("");
   };
 
   // Handle status change for a product
-  const handleStatusChange = async (productId: string | undefined, newStatus: string, note: string = "") => {
+  const handleStatusChange = async (
+    productId: string | undefined, 
+    newStatus: string, 
+    note: string = "", 
+    assignInfo?: { userId: string; userName: string; role: string }
+  ) => {
     if (!productId || !orderId) return;
     
     setUpdating(true);
     
     try {
-      await updateProductStatus(orderId, productId, statusField, newStatus);
+      await updateProductStatus(
+        orderId,
+        productId,
+        statusField,
+        newStatus,
+        note,
+        assignInfo
+      );
       
       toast({
         title: "Status Updated",
-        description: `Product status has been updated to ${newStatus}.`
+        description: newStatus === "pendingApproval" 
+          ? "Product has been sent for approval." 
+          : `Product status has been updated to ${newStatus}.`
       });
     } catch (error) {
       console.error("Error updating product status:", error);

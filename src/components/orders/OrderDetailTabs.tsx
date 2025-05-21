@@ -39,12 +39,8 @@ const OrderDetailTabs = ({
   const getVisibleTabs = () => {
     if (userRole === 'admin' || userRole === 'sales') {
       return ["details", "products", "workflow", "timeline"];
-    } else if (userRole === 'design') {
-      return ["products", "workflow"];
-    } else if (userRole === 'prepress') {
-      return ["products", "workflow"];
-    } else if (userRole === 'production') {
-      return ["products", "workflow"];
+    } else if (userRole === 'design' || userRole === 'prepress' || userRole === 'production') {
+      return ["products", "workflow", "timeline"];
     }
     return ["details", "products"];
   };
@@ -57,6 +53,9 @@ const OrderDetailTabs = ({
       setActiveTab(visibleTabs[0]);
     }
   }, [visibleTabs, activeTab]);
+
+  // Check if user can view financial details
+  const canViewFinancialDetails = userRole === 'admin' || userRole === 'sales';
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -84,7 +83,7 @@ const OrderDetailTabs = ({
                 clientName={order.clientName}
                 orderNumber={order.orderNumber}
                 orderId={order.id}
-                gstNumber={order.gstNumber}
+                gstNumber={canViewFinancialDetails ? order.gstNumber : undefined}
                 contactNumber={order.contactNumber}
               />
               
@@ -99,10 +98,10 @@ const OrderDetailTabs = ({
             
             <div className="space-y-6">
               <OrderSummary 
-                orderAmount={order.orderAmount}
+                orderAmount={canViewFinancialDetails ? order.orderAmount : undefined}
                 status={order.status}
                 clientName={order.clientName}
-                gstNumber={order.gstNumber}
+                gstNumber={canViewFinancialDetails ? order.gstNumber : undefined}
                 createdDate={new Date(order.createdAt.seconds * 1000).toLocaleDateString()}
                 onStatusUpdate={onStatusUpdate}
                 updating={updatingStatus}
@@ -111,7 +110,7 @@ const OrderDetailTabs = ({
                 departmentType={order.assignedDept}
               />
               
-              {(userRole === 'admin' || userRole === 'sales') && (
+              {canViewFinancialDetails && (
                 <OrderPayment 
                   paymentStatus={order.paymentStatus}
                   orderId={order.id}
@@ -128,7 +127,10 @@ const OrderDetailTabs = ({
         {/* Products Tab */}
         <TabsContent value="products">
           <div className="bg-white rounded-md shadow-sm border p-6">
-            <OrderProducts products={order.products} />
+            <OrderProducts 
+              products={order.products} 
+              showFinancialDetails={canViewFinancialDetails} 
+            />
           </div>
         </TabsContent>
         
@@ -140,6 +142,8 @@ const OrderDetailTabs = ({
               orderId={order.id} 
               department={order.assignedDept}
               status={order.status}
+              userRole={userRole}
+              assignedBy={order.createdByName}
             />
           </div>
         </TabsContent>

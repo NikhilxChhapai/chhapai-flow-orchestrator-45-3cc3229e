@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Table, 
   TableHeader, 
@@ -17,77 +17,179 @@ import {
   DialogTitle, 
   DialogFooter 
 } from "@/components/ui/dialog";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { getApprovalsPendingByUser, updateProductStatus } from "@/lib/mockData";
+import { Link } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-// Mock approval data - would come from API in a real implementation
-const approvalsMock = [
-  { 
-    id: "AP001", 
-    orderId: "ORD-2023-1001", 
-    type: "Design", 
-    requestedBy: "John Smith",
-    department: "Sales", 
-    requestDate: "2025-05-10", 
-    status: "pending",
-    description: "Approval needed for logo placement on custom t-shirt design"
-  },
-  { 
-    id: "AP002", 
-    orderId: "ORD-2023-1005", 
-    type: "Quote", 
-    requestedBy: "Maria Lopez",
-    department: "Sales", 
-    requestDate: "2025-05-12", 
-    status: "pending",
-    description: "Price quote exceeds standard limits, needs manager approval"
-  },
-  { 
-    id: "AP003", 
-    orderId: "ORD-2023-1012", 
-    type: "Production", 
-    requestedBy: "Robert Johnson",
-    department: "Design", 
-    requestDate: "2025-05-13", 
-    status: "pending",
-    description: "Special material request for banner production"
-  }
-];
+interface ApprovalItem {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  productId: string;
+  productName: string;
+  type: string;
+  requestedBy: {
+    userId: string;
+    userName: string;
+    role: string;
+  };
+  requestDate: Date;
+  status: 'pending' | 'approved' | 'rejected';
+  description: string;
+  department: string;
+}
 
 const Approvals = () => {
-  const [approvals, setApprovals] = useState(approvalsMock);
-  const [selectedApproval, setSelectedApproval] = useState<any>(null);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [processingAction, setProcessingAction] = useState(false);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
 
-  const handleViewDetails = (approval: any) => {
+  // Fetch approvals when component mounts
+  useEffect(() => {
+    const fetchApprovals = async () => {
+      if (currentUser) {
+        try {
+          const fetchedApprovals = await getApprovalsPendingByUser(currentUser.uid);
+          setApprovals(fetchedApprovals);
+        } catch (error) {
+          console.error("Error fetching approvals:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load approvals data",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchApprovals();
+  }, [currentUser, toast]);
+
+  const handleViewDetails = (approval: ApprovalItem) => {
     setSelectedApproval(approval);
+    setFeedbackText("");
     setDialogOpen(true);
   };
 
-  const handleApprove = (id: string) => {
-    // In a real app, this would call an API to update the approval status
-    setApprovals(approvals.map(item => 
-      item.id === id ? { ...item, status: 'approved' } : item
-    ));
-    setDialogOpen(false);
-    toast({
-      title: "Approval Granted",
-      description: `Approval ${id} has been approved successfully.`,
-    });
+  const handleApprove = async (approval: ApprovalItem) => {
+    setProcessingAction(true);
+    try {
+      // Update the product status to approved
+      const statusField = getStatusFieldFromDepartment(approval.department);
+      
+      // Different status value based on department
+      const newStatus = approval.department === 'design' ? 'approved' : 
+                        approval.department === 'prepress' ? 'approved' : 'complete';
+      
+      await updateProductStatus(
+        approval.orderId,
+        approval.productId,
+        statusField,
+        newStatus,
+        feedbackText || "Approved",
+        currentUser ? {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || currentUser.email || "Unknown User",
+          role: currentUser.role
+        } : undefined,
+        approval.requestedBy // Pass original requester info
+      );
+
+      // Update local state
+      setApprovals(prev => prev.filter(item => 
+        !(item.orderId === approval.orderId && item.productId === approval.productId)
+      ));
+
+      toast({
+        title: "Approval Granted",
+        description: `The ${approval.department} work has been approved.`,
+      });
+    } catch (error) {
+      console.error("Error approving item:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process approval",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingAction(false);
+      setDialogOpen(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    // In a real app, this would call an API to update the approval status
-    setApprovals(approvals.map(item => 
-      item.id === id ? { ...item, status: 'rejected' } : item
-    ));
-    setDialogOpen(false);
-    toast({
-      title: "Approval Rejected",
-      description: `Approval ${id} has been rejected.`,
-      variant: "destructive"
-    });
+  const handleReject = async (approval: ApprovalItem) => {
+    if (!feedbackText) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide feedback about what needs to be revised.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setProcessingAction(true);
+    try {
+      // Update the product status to needs revision
+      const statusField = getStatusFieldFromDepartment(approval.department);
+      await updateProductStatus(
+        approval.orderId,
+        approval.productId,
+        statusField,
+        'needsRevision',
+        feedbackText,
+        currentUser ? {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || currentUser.email || "Unknown User",
+          role: currentUser.role
+        } : undefined,
+        approval.requestedBy // Pass original requester info
+      );
+
+      // Update local state
+      setApprovals(prev => prev.filter(item => 
+        !(item.orderId === approval.orderId && item.productId === approval.productId)
+      ));
+
+      toast({
+        title: "Changes Requested",
+        description: `Feedback has been sent to the ${approval.department} team.`,
+      });
+    } catch (error) {
+      console.error("Error rejecting item:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process rejection",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingAction(false);
+      setDialogOpen(false);
+    }
+  };
+
+  // Helper function to get the correct status field based on department
+  const getStatusFieldFromDepartment = (department: string): "designStatus" | "prepressStatus" | "productionStatus" => {
+    switch (department) {
+      case 'design':
+        return "designStatus";
+      case 'prepress':
+        return "prepressStatus";
+      case 'production':
+        return "productionStatus";
+      default:
+        return "designStatus";
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -101,6 +203,18 @@ const Approvals = () => {
     }
   };
 
+  const formatDepartmentName = (dept: string) => {
+    return dept.charAt(0).toUpperCase() + dept.slice(1);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -111,27 +225,29 @@ const Approvals = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
               <TableHead>Order</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead className="hidden md:table-cell">Requested By</TableHead>
-              <TableHead className="hidden md:table-cell">Department</TableHead>
               <TableHead className="hidden md:table-cell">Date</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {approvals.length > 0 ? (
               approvals.map((approval) => (
-                <TableRow key={approval.id}>
-                  <TableCell>{approval.id}</TableCell>
-                  <TableCell>{approval.orderId}</TableCell>
-                  <TableCell>{approval.type}</TableCell>
-                  <TableCell className="hidden md:table-cell">{approval.requestedBy}</TableCell>
-                  <TableCell className="hidden md:table-cell">{approval.department}</TableCell>
-                  <TableCell className="hidden md:table-cell">{approval.requestDate}</TableCell>
-                  <TableCell>{getStatusBadge(approval.status)}</TableCell>
+                <TableRow key={`${approval.orderId}-${approval.productId}`}>
+                  <TableCell>
+                    <Link to={`/orders/${approval.orderId}`} className="text-primary hover:underline">
+                      {approval.orderNumber}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{approval.productName}</TableCell>
+                  <TableCell>{formatDepartmentName(approval.department)}</TableCell>
+                  <TableCell className="hidden md:table-cell">{approval.requestedBy.userName}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {approval.requestDate.toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button 
                       variant="outline" 
@@ -145,7 +261,7 @@ const Approvals = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   No approvals pending at this time.
                 </TableCell>
               </TableRow>
@@ -158,61 +274,70 @@ const Approvals = () => {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Approval Details</DialogTitle>
+              <DialogTitle>Approval Request Details</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-3 gap-2 text-sm">
-                <span className="font-medium">Approval ID:</span>
-                <span className="col-span-2">{selectedApproval.id}</span>
+                <span className="font-medium">Order:</span>
+                <span className="col-span-2">
+                  <Link to={`/orders/${selectedApproval.orderId}`} className="text-primary hover:underline">
+                    {selectedApproval.orderNumber}
+                  </Link>
+                </span>
                 
-                <span className="font-medium">Order ID:</span>
-                <span className="col-span-2">{selectedApproval.orderId}</span>
-                
-                <span className="font-medium">Type:</span>
-                <span className="col-span-2">{selectedApproval.type}</span>
-                
-                <span className="font-medium">Requested By:</span>
-                <span className="col-span-2">{selectedApproval.requestedBy}</span>
+                <span className="font-medium">Product:</span>
+                <span className="col-span-2">{selectedApproval.productName}</span>
                 
                 <span className="font-medium">Department:</span>
-                <span className="col-span-2">{selectedApproval.department}</span>
+                <span className="col-span-2">{formatDepartmentName(selectedApproval.department)}</span>
+                
+                <span className="font-medium">Requested By:</span>
+                <span className="col-span-2">{selectedApproval.requestedBy.userName}</span>
+                
+                <span className="font-medium">Role:</span>
+                <span className="col-span-2">{selectedApproval.requestedBy.role}</span>
                 
                 <span className="font-medium">Date:</span>
-                <span className="col-span-2">{selectedApproval.requestDate}</span>
+                <span className="col-span-2">{selectedApproval.requestDate.toLocaleDateString()}</span>
                 
-                <span className="font-medium">Status:</span>
-                <span className="col-span-2">{getStatusBadge(selectedApproval.status)}</span>
-                
-                <span className="font-medium">Description:</span>
+                <span className="font-medium">Notes:</span>
                 <span className="col-span-2">{selectedApproval.description}</span>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="feedback">Feedback</Label>
+                <Textarea
+                  id="feedback"
+                  placeholder="Add comments or feedback here..."
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {selectedApproval.type === 'pendingApproval' ? 
+                    "Feedback is required if you're requesting changes." : 
+                    "Add any additional notes here."}
+                </p>
+              </div>
             </div>
-            {selectedApproval.status === 'pending' && (
-              <DialogFooter className="flex justify-between sm:justify-between">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleReject(selectedApproval.id)}
-                  className="flex items-center gap-1"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reject
-                </Button>
-                <Button 
-                  onClick={() => handleApprove(selectedApproval.id)}
-                  className="flex items-center gap-1"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Approve
-                </Button>
-              </DialogFooter>
-            )}
-            {selectedApproval.status !== 'pending' && (
-              <DialogFooter>
-                <div className="text-sm text-muted-foreground">
-                  This approval has already been {selectedApproval.status}.
-                </div>
-              </DialogFooter>
-            )}
+            <DialogFooter className="flex justify-between sm:justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => handleReject(selectedApproval)}
+                className="flex items-center gap-1"
+                disabled={processingAction}
+              >
+                {processingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                Request Changes
+              </Button>
+              <Button 
+                onClick={() => handleApprove(selectedApproval)}
+                className="flex items-center gap-1"
+                disabled={processingAction}
+              >
+                {processingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Approve
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

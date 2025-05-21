@@ -525,7 +525,10 @@ export const updateProductStatus = async (
   orderId: string, 
   productId: string, 
   statusType: "designStatus" | "prepressStatus" | "productionStatus",
-  newStatus: string
+  newStatus: string,
+  note: string = "",
+  updatedBy?: { userId: string; userName: string; role: string },
+  originalRequester?: { userId: string; userName: string; role: string }
 ): Promise<void> => {
   const orderIndex = mockOrders.findIndex(order => order.id === orderId);
   
@@ -536,10 +539,35 @@ export const updateProductStatus = async (
     const productIndex = products.findIndex(product => product.id === productId);
     
     if (productIndex >= 0) {
-      products[productIndex] = {
-        ...products[productIndex],
-        [statusType]: newStatus
-      };
+      // Get department from status type
+      const department = statusType === "designStatus" ? "design" : 
+                         statusType === "prepressStatus" ? "prepress" : "production";
+      
+      // Store approval request information if sending for approval
+      if (newStatus === "pendingApproval") {
+        // Store the request information in the product
+        products[productIndex] = {
+          ...products[productIndex],
+          [statusType]: newStatus,
+          approvalRequest: {
+            requestedBy: updatedBy || { 
+              userId: "unknown", 
+              userName: "Unknown user", 
+              role: "unknown" 
+            },
+            department: department,
+            requestDate: new Date(),
+            status: "pending",
+            note: note || `Requesting approval for ${products[productIndex].name}`
+          }
+        };
+      } else {
+        // For other status updates
+        products[productIndex] = {
+          ...products[productIndex],
+          [statusType]: newStatus
+        };
+      }
       
       mockOrders[orderIndex] = {
         ...order,
@@ -550,12 +578,49 @@ export const updateProductStatus = async (
       // Add timeline entry
       const timeline = [...(order.timeline || [])];
       timeline.push({
-        status: `Product_${statusType.replace('Status', '')}`,
+        status: `Product_${statusType.replace('Status', '')}_${newStatus}`,
         date: MockTimestamp.now(),
-        note: `Product "${products[productIndex].name}" ${statusType.replace('Status', '')} status updated to ${newStatus}`
+        note: note || `Product "${products[productIndex].name}" ${statusType.replace('Status', '')} status updated to ${newStatus}`,
+        requestedBy: updatedBy ? updatedBy.userName : undefined,
+        assignedTo: originalRequester ? originalRequester.userName : undefined
       });
       
       mockOrders[orderIndex].timeline = timeline;
+      
+      // If this is an approval/rejection, handle department reassignment
+      if ((newStatus === "approved" || newStatus === "needsRevision") && originalRequester) {
+        const nextDeptMap: {[key: string]: string} = {
+          "design": "prepress",
+          "prepress": "production",
+          "production": "sales"
+        };
+        
+        // If approved, determine if we need to assign to next department
+        if (newStatus === "approved") {
+          const nextDept = nextDeptMap[department];
+          if (nextDept && department !== "production") {
+            // Only reassign if not in production (production goes back to sales when complete)
+            mockOrders[orderIndex].assignedDept = nextDept as DepartmentType;
+            
+            timeline.push({
+              status: `Assigned_To_${nextDept}`,
+              date: MockTimestamp.now(),
+              note: `Order assigned to ${nextDept} department after ${department} approval`,
+              assignedBy: updatedBy ? updatedBy.userName : undefined
+            });
+          }
+        } else if (newStatus === "needsRevision") {
+          // If needs revision, assign back to the original department
+          mockOrders[orderIndex].assignedDept = department as DepartmentType;
+          
+          timeline.push({
+            status: `Assigned_Back_To_${department}`,
+            date: MockTimestamp.now(),
+            note: `Order assigned back to ${department} department for revisions`,
+            assignedBy: updatedBy ? updatedBy.userName : undefined
+          });
+        }
+      }
       
       // Notify listeners
       notifyOrderListeners();
@@ -563,7 +628,87 @@ export const updateProductStatus = async (
   }
 };
 
-// Update payment status
+// Add new function to get approvals pending for the current user
+export const getApprovalsPendingByUser = async (userId: string) => {
+  const pendingApprovals: any[] = [];
+  
+  // Loop through all orders to find products pending approval
+  for (const order of mockOrders) {
+    // Check if order was created or assigned by this user
+    const isCreatorOrAssigner = order.createdBy === userId || order.assignedByUser === userId;
+    
+    // If this user didn't create the order and isn't assigned to it, skip
+    if (!isCreatorOrAssigner && !(order.assignedDept === 'sales' && userId === 'admin')) {
+      continue;
+    }
+    
+    // Check all products for pending approvals
+    for (const product of order.products) {
+      // Check for design approval requests
+      if (product.designStatus === "pendingApproval" && product.approvalRequest) {
+        pendingApprovals.push({
+          id: `${order.id}-${product.id}-design`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          productId: product.id,
+          productName: product.name,
+          type: "pendingApproval",
+          department: "design",
+          requestedBy: product.approvalRequest.requestedBy,
+          requestDate: product.approvalRequest.requestDate,
+          status: "pending",
+          description: product.approvalRequest.note || `Requesting approval for design of ${product.name}`
+        });
+      }
+      
+      // Check for prepress approval requests
+      if (product.prepressStatus === "pendingApproval" && product.approvalRequest) {
+        pendingApprovals.push({
+          id: `${order.id}-${product.id}-prepress`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          productId: product.id,
+          productName: product.name,
+          type: "pendingApproval",
+          department: "prepress",
+          requestedBy: product.approvalRequest.requestedBy,
+          requestDate: product.approvalRequest.requestDate,
+          status: "pending",
+          description: product.approvalRequest.note || `Requesting approval for prepress of ${product.name}`
+        });
+      }
+      
+      // Check for production completion approvals
+      if (product.productionStatus === "readyToDispatch" && product.approvalRequest) {
+        pendingApprovals.push({
+          id: `${order.id}-${product.id}-production`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          productId: product.id,
+          productName: product.name,
+          type: "pendingApproval",
+          department: "production",
+          requestedBy: product.approvalRequest.requestedBy,
+          requestDate: product.approvalRequest.requestDate,
+          status: "pending",
+          description: product.approvalRequest.note || `Ready for final approval of ${product.name}`
+        });
+      }
+    }
+  }
+  
+  return pendingApprovals;
+};
+
+// Get all approvals (approved, rejected, pending) - useful for admin views
+export const getApprovals = async () => {
+  const allApprovals: any[] = [];
+  
+  // Implementation similar to getApprovalsPendingByUser but including all statuses
+  
+  return allApprovals;
+};
+
 export const updatePaymentStatus = async (orderId: string, paymentStatus: PaymentStatus, note: string = ""): Promise<void> => {
   const orderIndex = mockOrders.findIndex(order => order.id === orderId);
   

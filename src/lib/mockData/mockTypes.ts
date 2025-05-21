@@ -7,12 +7,25 @@ import { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatu
 // Re-export types correctly with 'export type'
 export type { OrderStatus, DepartmentType, PaymentStatus, DesignStatus, PrepressStatus, ProductionStatus, UserRole } from '../firebase/types';
 
+// Approval request type
+export interface ApprovalRequest {
+  requestedBy: {
+    userId: string;
+    userName: string;
+    role: string;
+  };
+  department: string;
+  requestDate: Date;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string;
+}
+
 // Product in an order
 export interface OrderProduct {
   id?: string;
   name: string;
-  quantity: number; // Changed from optional to required to match firebase/types.ts
-  price: number;    // Changed from optional to required to match firebase/types.ts
+  quantity: number;
+  price: number;
   designStatus?: DesignStatus;
   prepressStatus?: PrepressStatus;
   productionStatus?: ProductionStatus;
@@ -22,6 +35,8 @@ export interface OrderProduct {
     cutting: boolean;
     foiling: boolean;
   };
+  // New fields for approval workflow
+  approvalRequest?: ApprovalRequest;
 }
 
 // Timeline event for an order
@@ -30,6 +45,9 @@ export interface OrderTimeline {
   date: MockTimestamp;
   note: string;
   formattedDate?: string;
+  requestedBy?: string;
+  assignedBy?: string;
+  assignedTo?: string;
 }
 
 // Order data structure
@@ -44,8 +62,10 @@ export interface Order {
   createdBy: string;
   createdByName?: string;
   updatedBy?: string;
-  assignedDept: DepartmentType; // Changed from optional to required to match firebase/types.ts
-  paymentStatus: PaymentStatus; // Changed from optional to required to match firebase/types.ts
+  assignedDept: DepartmentType;
+  assignedByUser?: string;
+  assignedByName?: string;
+  paymentStatus: PaymentStatus;
   gstNumber?: string;
   contactNumber: string;
   deliveryDate?: MockTimestamp;

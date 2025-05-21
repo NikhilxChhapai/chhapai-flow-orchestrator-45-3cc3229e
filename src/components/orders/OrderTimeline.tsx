@@ -13,6 +13,8 @@ import {
   Truck, 
   DollarSign, 
   Check,
+  UserCheck,
+  AlertTriangle,
   LucideIcon
 } from "lucide-react";
 
@@ -20,6 +22,8 @@ interface TimelineEvent {
   status: string;
   formattedDate: string;
   note: string;
+  assignedBy?: string;
+  requestedBy?: string;
 }
 
 interface OrderTimelineProps {
@@ -34,6 +38,8 @@ const getStatusIcon = (status: string): LucideIcon => {
   if (status.startsWith("Prepress_")) return File;
   if (status.startsWith("Production_")) return Truck;
   if (status.startsWith("Payment_")) return DollarSign;
+  if (status.includes("PendingApproval")) return AlertTriangle;
+  if (status.includes("Approved")) return UserCheck;
   if (status === "ReadyToDispatch") return Truck;
   if (status === "Completed") return Check;
   return Package; // Default
@@ -67,7 +73,15 @@ const OrderTimeline = ({ timeline, formatStatus }: OrderTimelineProps) => {
                         {event.formattedDate}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground break-words mb-2">{event.note}</p>
+                    <p className="text-sm text-muted-foreground break-words mb-2">
+                      {event.note}
+                      {event.requestedBy && (
+                        <span className="block mt-1 font-medium">Requested by: {event.requestedBy}</span>
+                      )}
+                      {event.assignedBy && (
+                        <span className="block mt-1 font-medium">Assigned by: {event.assignedBy}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               );

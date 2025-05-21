@@ -18,7 +18,9 @@ import {
   mockDoc,
   mockGetDocs,
   getOrderWithRealTimeUpdates,
-  updateProductStatus
+  updateProductStatus,
+  getApprovalsPendingByUser,
+  getApprovals
 } from './mockOrders';
 import { ref, uploadBytes, getDownloadURL } from './mockStorage';
 
@@ -188,7 +190,9 @@ export {
   getOrdersByDepartment,
   getOrdersByStatus,
   getOrdersForBulkOperations,
-  updateProductStatus
+  updateProductStatus,
+  getApprovalsPendingByUser,
+  getApprovals
 };
 
 // New function to update payment status
@@ -213,22 +217,29 @@ export const updatePaymentStatus = async (orderId: string, paymentStatus: string
 };
 
 // Function to assign order to department
-export const assignOrderToDepartment = async (orderId: string, department: string, newStatus: string) => {
+export const assignOrderToDepartment = async (orderId: string, department: string, newStatus: string, assignedBy?: { userId: string; userName: string; role: string }) => {
   const order = await getOrderById(orderId);
   
   if (order) {
     const timeline = [...(order.timeline || [])];
     
+    const note = assignedBy 
+      ? `Order assigned to ${department} department by ${assignedBy.userName}` 
+      : `Order assigned to ${department} department`;
+    
     timeline.push({
       status: newStatus,
       date: MockTimestamp.now(),
-      note: `Order assigned to ${department} department`
+      note,
+      assignedBy: assignedBy ? assignedBy.userName : undefined
     });
     
     await updateOrder(orderId, {
       assignedDept: department,
       status: newStatus,
-      timeline
+      timeline,
+      assignedByUser: assignedBy ? assignedBy.userId : undefined,
+      assignedByName: assignedBy ? assignedBy.userName : undefined
     });
   }
 };

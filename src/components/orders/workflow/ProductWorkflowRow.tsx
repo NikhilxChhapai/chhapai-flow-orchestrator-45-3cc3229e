@@ -13,6 +13,7 @@ interface ProductWorkflowRowProps {
   userRole: string;
   index: number;
   statusOptions: { value: string; label: string }[];
+  assignedBy?: string;
 }
 
 const ProductWorkflowRow = ({
@@ -21,7 +22,8 @@ const ProductWorkflowRow = ({
   department,
   userRole,
   index,
-  statusOptions
+  statusOptions,
+  assignedBy
 }: ProductWorkflowRowProps) => {
   const statusField = getStatusField(department);
 
@@ -47,6 +49,8 @@ const ProductWorkflowRow = ({
           department={department}
           statusOptions={statusOptions}
           statusField={statusField}
+          userRole={userRole}
+          assignedBy={assignedBy}
         />
       </TableCell>
     </TableRow>
