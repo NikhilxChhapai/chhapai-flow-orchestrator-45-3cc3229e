@@ -101,6 +101,8 @@ export interface Order {
   createdByName?: string;
   updatedBy?: string;
   assignedDept: DepartmentType;
+  assignedByUser?: string;
+  assignedByName?: string; // Added this property to fix the error
   paymentStatus: PaymentStatus;
   deliveryDate?: any; // Timestamp
   deliveryAddress: string;
@@ -159,4 +161,6 @@ export interface OrderProductsWorkflowProps {
   orderId: string;
   department: DepartmentType;
   status?: OrderStatus;
+  userRole: string; // Added this property to fix the error
+  assignedBy?: string; // Added this property to fix the error
 }

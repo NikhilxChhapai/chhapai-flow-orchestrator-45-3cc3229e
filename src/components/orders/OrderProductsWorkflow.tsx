@@ -14,12 +14,18 @@ interface OrderProductsWorkflowProps {
   orderId: string;
   department: DepartmentType;
   status?: OrderStatus;
+  userRole: string;
+  assignedBy?: string;
 }
 
-const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderProductsWorkflowProps) => {
-  const { currentUser } = useAuth();
-  const userRole = currentUser?.role || 'sales';
-  
+const OrderProductsWorkflow = ({ 
+  products, 
+  orderId, 
+  department, 
+  status,
+  userRole,
+  assignedBy
+}: OrderProductsWorkflowProps) => {
   // Get status options based on department and user role
   const statusOptions = getStatusOptions(department, userRole);
   
@@ -74,6 +80,7 @@ const OrderProductsWorkflow = ({ products, orderId, department, status }: OrderP
                 userRole={userRole}
                 index={index}
                 statusOptions={statusOptions}
+                assignedBy={assignedBy}
               />
             ))}
           </TableBody>
