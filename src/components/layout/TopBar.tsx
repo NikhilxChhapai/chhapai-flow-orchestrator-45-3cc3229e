@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ const TopBar = ({ toggleSidebar }: TopBarProps) => {
   const { currentUser, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     try {
@@ -34,13 +36,40 @@ const TopBar = ({ toggleSidebar }: TopBarProps) => {
   return (
     <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background">
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="menu-toggle focus-ring"
+          aria-label="Toggle sidebar"
+        >
           <Menu className="h-5 w-5" />
         </Button>
-        <h1 className="ml-4 text-lg font-semibold hidden md:block">Chhapai Workflow Manager</h1>
+        
+        <div className="flex items-center ml-4">
+          {/* Logo and title container */}
+          <div className={`${isMobile ? "flex justify-center w-full" : ""}`}>
+            <img 
+              src="/logo-full.png" 
+              alt="Chhapai" 
+              className="h-8 object-contain"
+            />
+            {!isMobile && (
+              <h1 className="ml-3 text-lg font-semibold hidden md:block">
+                Workflow Manager
+              </h1>
+            )}
+          </div>
+        </div>
       </div>
+      
       <div className="flex items-center space-x-2">
-        <Button variant="ghost" size="icon">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="focus-ring"
+          aria-label="Notifications"
+        >
           <Bell className="h-5 w-5" />
         </Button>
         
@@ -48,17 +77,24 @@ const TopBar = ({ toggleSidebar }: TopBarProps) => {
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          className="focus-ring"
+          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
         >
           {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="focus-ring"
+              aria-label="User menu"
+            >
               <User className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               {currentUser?.displayName || currentUser?.email}
             </DropdownMenuLabel>

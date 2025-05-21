@@ -4,12 +4,11 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { motion } from "framer-motion"; // We'll need to add this dependency
+import { motion } from "framer-motion";
 
 const MainLayout = () => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-  const [pageTransition, setPageTransition] = useState(false);
 
   useEffect(() => {
     // Auto-close sidebar on mobile
@@ -26,7 +25,7 @@ const MainLayout = () => {
 
   return (
     <div className="flex h-screen w-full bg-background">
-      <Sidebar collapsed={!sidebarOpen} setCollapsed={(value) => setSidebarOpen(!value)} />
+      {!isMobile && <Sidebar collapsed={!sidebarOpen} setCollapsed={(value) => setSidebarOpen(!value)} />}
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar toggleSidebar={toggleSidebar} />
         <motion.main 

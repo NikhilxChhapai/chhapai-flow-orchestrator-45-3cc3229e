@@ -14,7 +14,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 221.2 83.2% 53.3%;
+    /* Enhanced blue for better contrast */
+    --primary: 215 90% 45%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -35,14 +36,15 @@
 
     --radius: 0.5rem;
     
+    /* Enhanced sidebar colors for better contrast */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 215 90% 45%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
+    --sidebar-ring: 215 90% 45%;
   }
 
   .dark {
@@ -55,7 +57,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221.2 83.2% 53.3%;
+    /* Enhanced blue for better contrast in dark mode */
+    --primary: 210 90% 60%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -74,14 +77,15 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
+    /* Enhanced sidebar colors for dark mode */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 210 90% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
+    --sidebar-accent: 220 25% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 25% 27%;
+    --sidebar-ring: 210 90% 60%;
   }
 }
 
@@ -96,6 +100,24 @@
   
   .card-gradient {
     @apply bg-gradient-to-br from-card to-secondary/80 backdrop-blur-sm;
+  }
+
+  /* New responsive utility classes */
+  .mobile-container {
+    @apply px-2 md:px-4 lg:px-6;
+  }
+
+  .section-spacing {
+    @apply my-4 md:my-6 lg:my-8;
+  }
+
+  .center-on-mobile {
+    @apply flex justify-center md:justify-start;
+  }
+
+  /* Improved animations */
+  .animate-sidebar {
+    @apply transition-all duration-300 ease-in-out;
   }
 }
 
@@ -114,19 +136,19 @@
 }
 
 .status-pending {
-  @apply bg-yellow-200 text-yellow-800;
+  @apply bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
 }
 
 .status-approved {
-  @apply bg-green-200 text-green-800;
+  @apply bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200;
 }
 
 .status-error {
-  @apply bg-red-200 text-red-800;
+  @apply bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200;
 }
 
 .status-progress {
-  @apply bg-blue-200 text-blue-800;
+  @apply bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
 }
 
 /* Improved table styles */
@@ -161,25 +183,57 @@
 
 /* Status button styles */
 .status-button-design {
-  @apply bg-indigo-50 text-indigo-700 hover:bg-indigo-100;
+  @apply bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900 dark:text-indigo-200;
 }
 
 .status-button-prepress {
-  @apply bg-purple-50 text-purple-700 hover:bg-purple-100;
+  @apply bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900 dark:text-purple-200;
 }
 
 .status-button-production {
-  @apply bg-amber-50 text-amber-700 hover:bg-amber-100;
+  @apply bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-200;
 }
 
 .status-button-sales {
-  @apply bg-blue-50 text-blue-700 hover:bg-blue-100;
+  @apply bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200;
 }
 
 .status-button-complete {
-  @apply bg-green-50 text-green-700 hover:bg-green-100;
+  @apply bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:text-green-200;
 }
 
 .status-button-error {
-  @apply bg-red-50 text-red-700 hover:bg-red-100;
+  @apply bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900 dark:text-red-200;
+}
+
+/* New responsive classes for login buttons */
+.login-button {
+  @apply flex items-center justify-center gap-2 w-full py-2 px-3 rounded-md transition-all duration-200;
+}
+
+.login-button-grid {
+  @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2;
+}
+
+/* Enhanced mobile navigation */
+.mobile-nav {
+  @apply md:hidden fixed inset-0 z-50 bg-background/95 backdrop-blur-sm;
+}
+
+.mobile-nav-content {
+  @apply flex flex-col h-full overflow-y-auto pb-safe;
+}
+
+/* Mobile menu toggle animation */
+.menu-toggle {
+  @apply transition-transform duration-300;
+}
+
+.menu-toggle[data-state=open] {
+  @apply rotate-90;
+}
+
+/* Added focus styles for better accessibility */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary;
 }
