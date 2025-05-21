@@ -1,138 +1,94 @@
 
-import { useEffect, useState } from "react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { getOrdersWithRealTimeUpdates } from "@/lib/firebase";
-import { Order } from "@/lib/firebase/types";
-import { Loader2 } from "lucide-react";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Order } from '@/lib/firebase/types';
+import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
-// Function to determine badge color based on status
-const getStatusBadge = (status: string) => {
-  if (status.includes("Design")) return "bg-blue-500";
-  if (status.includes("Prepress")) return "bg-purple-500";
-  if (status.includes("Production")) return "bg-amber-500";
-  if (status === "ReadyToDispatch") return "bg-green-500";
-  if (status === "Completed") return "bg-gray-500";
-  return "bg-gray-500";
-};
+interface RecentOrdersProps {
+  orders: Order[];
+  limit: number;
+  showAmount: boolean;
+}
 
-// Function to convert status to a more readable format
-const formatStatus = (status: string) => {
-  return status
-    .replace(/_/g, " ")
-    .replace(/([A-Z])/g, " $1")
-    .trim();
-};
+const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }) => {
+  // Sort orders by creation date (newest first)
+  const sortedOrders = [...orders].sort((a, b) => 
+    b.createdAt.toMillis() - a.createdAt.toMillis()
+  ).slice(0, limit);
 
-// Format date function
-const formatDate = (timestamp: any) => {
-  if (!timestamp || !timestamp.toDate) return "N/A";
-  return new Date(timestamp.toDate()).toLocaleDateString();
-};
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
-const RecentOrders = () => {
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    const unsubscribe = getOrdersWithRealTimeUpdates((fetchedOrders) => {
-      // Only show the 5 most recent orders
-      const recentOrders = fetchedOrders.slice(0, 5);
-      setOrders(recentOrders);
-      setLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, []);
-  
-  if (loading) {
-    return (
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center h-48">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
-      </Card>
-    );
-  }
-  
+  // Get status color based on order status
+  const getStatusColor = (status: string) => {
+    if (status.startsWith('Order_')) return 'bg-amber-100 text-amber-800';
+    if (status.includes('Design_')) return 'bg-blue-100 text-blue-800';
+    if (status.includes('Prepress_')) return 'bg-indigo-100 text-indigo-800';
+    if (status.includes('Production_')) return 'bg-purple-100 text-purple-800';
+    if (status === 'Completed') return 'bg-green-100 text-green-800';
+    if (status === 'Cancelled') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
   return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <CardTitle>Recent Orders</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Client</TableHead>
-                {!isMobile && <TableHead>Amount</TableHead>}
-                <TableHead>Status</TableHead>
-                {!isMobile && <TableHead>Date</TableHead>}
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length > 0 ? (
-                orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium whitespace-nowrap">{order.orderNumber}</TableCell>
-                    <TableCell className="max-w-[180px] truncate">{order.clientName}</TableCell>
-                    {!isMobile && <TableCell>₹{order.orderAmount.toLocaleString()}</TableCell>}
-                    <TableCell>
-                      <Badge className={getStatusBadge(order.status)}>
-                        {isMobile ? formatStatus(order.status).split(' ')[0] : formatStatus(order.status)}
+    <div>
+      <h3 className="text-lg font-semibold mb-4">Recent Orders</h3>
+      {sortedOrders.length === 0 ? (
+        <div className="text-center py-6 text-muted-foreground">
+          No orders found
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sortedOrders.map((order) => (
+            <div key={order.id} className="border rounded-md p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <Link
+                    to={`/orders/${order.id}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Order #{order.orderNumber}
+                  </Link>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {order.clientName} • {formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true })}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <Badge variant="outline" className={getStatusColor(order.status)}>
+                      {order.status.replace(/_/g, ' ')}
+                    </Badge>
+                    {showAmount && (
+                      <Badge variant="outline" className={
+                        order.paymentStatus === 'paid' 
+                          ? 'bg-green-100 text-green-800'
+                          : (order.paymentStatus === 'partial' 
+                              ? 'bg-amber-100 text-amber-800' 
+                              : 'bg-red-100 text-red-800')
+                      }>
+                        {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                       </Badge>
-                    </TableCell>
-                    {!isMobile && <TableCell>{formatDate(order.createdAt)}</TableCell>}
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => navigate(`/order/${order.id}`)}
-                      >
-                        View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={isMobile ? 4 : 6} className="text-center py-4">
-                    No orders found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    )}
+                  </div>
+                </div>
+                {showAmount && (
+                  <div className="text-right">
+                    <div className="font-semibold">
+                      {formatCurrency(order.orderAmount)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="mt-4 flex justify-end">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/orders')}
-          >
-            View All Orders
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 

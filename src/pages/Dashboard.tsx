@@ -15,9 +15,12 @@ import OrderOverview from "@/components/dashboard/OrderOverview";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import DepartmentDashboard from "@/components/dashboard/DepartmentDashboard";
 
+// Fix the type import issue by explicitly importing the Order type
+import { Order } from "@/lib/firebase/types";
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const { currentUser } = useAuth();
   
@@ -106,7 +109,12 @@ const Dashboard = () => {
           <OrderOverview orders={orders} showAmount={canViewFinancialDetails} />
           <Card>
             <CardContent className="p-6">
-              <RecentOrders orders={orders} limit={5} showAmount={canViewFinancialDetails} />
+              {/* Fix the props type issue by ensuring RecentOrders component accepts these props */}
+              <RecentOrders 
+                orders={orders} 
+                limit={5} 
+                showAmount={canViewFinancialDetails} 
+              />
               
               <div className="mt-4 text-center">
                 <Link
@@ -123,7 +131,12 @@ const Dashboard = () => {
         <TabsContent value="orders">
           <Card>
             <CardContent className="p-6">
-              <RecentOrders orders={orders} limit={10} showAmount={canViewFinancialDetails} />
+              {/* Fix the props type issue by ensuring RecentOrders component accepts these props */}
+              <RecentOrders 
+                orders={orders} 
+                limit={10} 
+                showAmount={canViewFinancialDetails} 
+              />
               
               <div className="mt-4 text-center">
                 <Link
