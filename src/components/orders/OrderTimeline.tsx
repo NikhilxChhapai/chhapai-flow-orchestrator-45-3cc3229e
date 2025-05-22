@@ -45,8 +45,8 @@ const getStatusIcon = (status: string): LucideIcon => {
   if (status.includes("PendingApproval")) return AlertTriangle;
   if (status.includes("Approved")) return UserCheck;
   if (status === "ReadyToDispatch") return Truck;
-  if (status === "Completed")) return Check;
-  if (status === "Cancelled")) return X;
+  if (status === "Completed") return Check;
+  if (status === "Cancelled") return X;
   return Clock; // Default
 };
 

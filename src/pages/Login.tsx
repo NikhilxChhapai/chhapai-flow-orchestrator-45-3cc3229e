@@ -10,13 +10,16 @@ import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { motion } from "framer-motion";
 
-// User data for quick login
-const demoUsers = [
-  { name: "Admin", email: "admin@chhapai.com", icon: "👑" },
-  { name: "Alex", email: "sales@chhapai.com", icon: "👨‍💼" },
-  { name: "Priya", email: "design@chhapai.com", icon: "👩‍🎨" },
-  { name: "Raj", email: "prepress@chhapai.com", icon: "👨‍💻" },
-  { name: "Maya", email: "production@chhapai.com", icon: "👷‍♀️" }
+// Real users data for quick login
+const realUsers = [
+  { name: "Rajesh Ji", email: "hi@chhapai.in", icon: "👑", role: "Admin" },
+  { name: "Nikhil", email: "chd@chhapai.in", icon: "👨‍💼", role: "Sales" },
+  { name: "Vanika", email: "vanika@chhapai.in", icon: "👩‍💼", role: "Sales" },
+  { name: "Harish", email: "saleschd@chhapai.in", icon: "👨‍💻", role: "Sales" },
+  { name: "Rohini", email: "rohini@chhapai.in", icon: "👩‍💻", role: "Sales" },
+  { name: "Hritik", email: "smo@chhapai.in", icon: "👨‍🎨", role: "Design" },
+  { name: "Yashpal Ji", email: "orders@chhapai.in", icon: "🖨️", role: "Prepress" },
+  { name: "Sanjay", email: "sanjay@chhapai.in", icon: "🏭", role: "Production" }
 ];
 
 const Login = () => {
@@ -53,15 +56,18 @@ const Login = () => {
     }
   };
 
-  // Handle quick login with demo accounts
-  const handleQuickLogin = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("password");
+  // Handle quick login with real accounts
+  const handleQuickLogin = async (userEmail: string) => {
+    setEmail(userEmail);
     
-    // Auto submit the form after a short delay to show the filled credentials
+    // Find the correct password for this user
+    const userPassword = getUserPassword(userEmail);
+    setPassword(userPassword);
+    
+    // Auto submit the form
     setIsLoading(true);
     try {
-      await login(demoEmail, "password");
+      await login(userEmail, userPassword);
       toast({
         title: "Login successful",
         description: "Welcome to Chhapai Workflow Manager",
@@ -77,6 +83,21 @@ const Login = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Helper function to get the correct password for each user
+  const getUserPassword = (email: string): string => {
+    switch(email) {
+      case "hi@chhapai.in": return "Admin@123";
+      case "chd@chhapai.in": return "Nikhil@123";
+      case "vanika@chhapai.in": return "vanika@123";
+      case "saleschd@chhapai.in": return "harish@123";
+      case "rohini@chhapai.in": return "rohini@123";
+      case "smo@chhapai.in": return "Hritik@123";
+      case "orders@chhapai.in": return "Yashpal@123";
+      case "sanjay@chhapai.in": return "sanjay@123";
+      default: return "";
     }
   };
 
@@ -174,8 +195,8 @@ const Login = () => {
           transition={{ duration: 0.5, delay: 0.5 }}
         >
           <h3 className="text-center text-sm font-medium mb-3 text-muted-foreground">Quick Login</h3>
-          <div className="login-button-grid">
-            {demoUsers.map((user, index) => (
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {realUsers.map((user, index) => (
               <motion.div
                 key={user.email}
                 initial={{ opacity: 0, y: 10 }}
@@ -184,25 +205,17 @@ const Login = () => {
               >
                 <Button 
                   variant="outline"
-                  className="login-button bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border border-primary/20 text-foreground hover:shadow-md transition-all w-full focus-ring"
+                  className="bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border border-primary/20 text-foreground hover:shadow-md transition-all w-full focus-ring flex flex-col py-3 h-auto"
                   onClick={() => handleQuickLogin(user.email)}
                   disabled={isLoading}
                 >
-                  <span className="text-xl mr-2">{user.icon}</span>
-                  <span>{user.name}</span>
+                  <span className="text-xl mb-1">{user.icon}</span>
+                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-xs text-muted-foreground mt-1">{user.role}</span>
                 </Button>
               </motion.div>
             ))}
           </div>
-        </motion.div>
-        
-        <motion.div 
-          className="mt-4 text-center text-xs text-muted-foreground"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-        >
-          <p>All demo accounts use password: "password"</p>
         </motion.div>
       </motion.div>
     </div>
