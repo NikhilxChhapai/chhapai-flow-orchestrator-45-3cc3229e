@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, Menu, Moon, Sun, User } from "lucide-react";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 
 type TopBarProps = {
   toggleSidebar: () => void;
@@ -34,17 +35,30 @@ const TopBar = ({ toggleSidebar }: TopBarProps) => {
   };
 
   return (
-    <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background">
+    <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background relative">
       <div className="flex items-center">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="menu-toggle focus-ring mr-2 md:mr-4"
-          aria-label="Toggle sidebar"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+        {isMobile ? (
+          <SheetTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="menu-toggle focus-ring mr-2 md:mr-4"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+        ) : (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleSidebar}
+            className="menu-toggle focus-ring mr-2 md:mr-4"
+            aria-label="Toggle sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
       </div>
       
       {/* Logo centered on mobile, left-aligned on desktop */}

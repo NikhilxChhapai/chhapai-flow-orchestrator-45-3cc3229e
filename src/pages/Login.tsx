@@ -195,7 +195,7 @@ const Login = () => {
           transition={{ duration: 0.5, delay: 0.5 }}
         >
           <h3 className="text-center text-sm font-medium mb-3 text-muted-foreground">Quick Login</h3>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {realUsers.map((user, index) => (
               <motion.div
                 key={user.email}
@@ -210,7 +210,7 @@ const Login = () => {
                   disabled={isLoading}
                 >
                   <span className="text-xl mb-1">{user.icon}</span>
-                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-sm font-medium line-clamp-1">{user.name}</span>
                   <span className="text-xs text-muted-foreground mt-1">{user.role}</span>
                 </Button>
               </motion.div>

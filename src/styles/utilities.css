@@ -1,0 +1,23 @@
+
+@tailwind components;
+@tailwind utilities;
+
+/* New responsive utility classes */
+@layer utilities {
+  .mobile-container {
+    @apply px-2 md:px-4 lg:px-6;
+  }
+
+  .section-spacing {
+    @apply my-4 md:my-6 lg:my-8;
+  }
+
+  .center-on-mobile {
+    @apply flex justify-center md:justify-start;
+  }
+  
+  /* Focus ring for accessibility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary;
+  }
+}
