@@ -13,9 +13,14 @@ interface RecentOrdersProps {
 
 const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }) => {
   // Sort orders by creation date (newest first)
-  const sortedOrders = [...orders].sort((a, b) => 
-    b.createdAt.toMillis() - a.createdAt.toMillis()
-  ).slice(0, limit);
+  const sortedOrders = [...orders].sort((a, b) => {
+    // Handle both Firebase Timestamp and MockTimestamp objects
+    const aTime = a.createdAt.toDate ? a.createdAt.toDate().getTime() : 
+                 (a.createdAt.getSeconds ? a.createdAt.getSeconds() * 1000 : new Date(a.createdAt).getTime());
+    const bTime = b.createdAt.toDate ? b.createdAt.toDate().getTime() : 
+                 (b.createdAt.getSeconds ? b.createdAt.getSeconds() * 1000 : new Date(b.createdAt).getTime());
+    return bTime - aTime;
+  }).slice(0, limit);
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -35,6 +40,14 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }
     if (status === 'Completed') return 'bg-green-100 text-green-800';
     if (status === 'Cancelled') return 'bg-red-100 text-red-800';
     return 'bg-gray-100 text-gray-800';
+  };
+
+  // Helper function to safely get date from timestamp
+  const getDateFromTimestamp = (timestamp: any) => {
+    if (!timestamp) return new Date();
+    if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+    if (timestamp.getSeconds) return new Date(timestamp.getSeconds() * 1000);
+    return new Date(timestamp);
   };
 
   return (
@@ -57,7 +70,7 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }
                     Order #{order.orderNumber}
                   </Link>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {order.clientName} • {formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true })}
+                    {order.clientName} • {formatDistanceToNow(getDateFromTimestamp(order.createdAt), { addSuffix: true })}
                   </div>
                   <div className="mt-2 flex gap-2">
                     <Badge variant="outline" className={getStatusColor(order.status)}>

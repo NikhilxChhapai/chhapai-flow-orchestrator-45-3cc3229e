@@ -26,6 +26,11 @@ export class MockTimestamp {
     return new Date(this.seconds * 1000 + this.nanoseconds / 1000000);
   }
 
+  // Add toMillis method for compatibility with Firebase Timestamp
+  toMillis(): number {
+    return this.seconds * 1000 + this.nanoseconds / 1000000;
+  }
+  
   // Provide a getter for seconds for compatibility
   getSeconds(): number {
     return this.seconds;
