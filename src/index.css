@@ -221,7 +221,7 @@
 }
 
 .mobile-nav-content {
-  @apply flex flex-col h-full overflow-y-auto pb-safe;
+  @apply flex flex-col h-full overflow-y-auto pb-6;
 }
 
 /* Mobile menu toggle animation */
