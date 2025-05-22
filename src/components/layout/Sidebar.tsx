@@ -5,6 +5,7 @@ import { Sidebar as SidebarComponent } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/providers/ThemeProvider";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -25,10 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
-// Logo images are now stored in public folder
-const logoFull = "/logo-full.png"; 
-const logoIcon = "/logo-icon.png";
-
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
@@ -40,6 +37,7 @@ const Sidebar = ({
 }: SidebarProps) => {
   const location = useLocation();
   const { currentUser } = useAuth();
+  const { theme } = useTheme();
   const [userRole, setUserRole] = useState<string>("admin");
   const [pendingTasks, setPendingTasks] = useState<number>(5);
   const isMobile = useIsMobile();
@@ -70,10 +68,10 @@ const Sidebar = ({
   // Department-specific colors
   const getDeptColor = (dept: string) => {
     switch(dept.toLowerCase()) {
-      case 'design': return 'text-blue-600 hover:text-blue-800';
-      case 'prepress': return 'text-purple-600 hover:text-purple-800';
-      case 'production': return 'text-amber-600 hover:text-amber-800';
-      case 'sales': return 'text-green-600 hover:text-green-800';
+      case 'design': return 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300';
+      case 'prepress': return 'text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300';
+      case 'production': return 'text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300';
+      case 'sales': return 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300';
       default: return '';
     }
   };
@@ -86,10 +84,18 @@ const Sidebar = ({
         {/* Logo area */}
         <div className="flex items-center">
           {collapsed && !isMobile ? (
-            <img src={logoIcon} alt="Logo" className="h-8 w-8" />
+            <img 
+              src={theme === "dark" ? "/logo-icon-white.png" : "/logo-icon.png"} 
+              alt="Logo" 
+              className="h-8 w-8" 
+            />
           ) : (
             <div className="flex items-center">
-              <img src={logoFull} alt="Chhapai" className="h-8" />
+              <img 
+                src={theme === "dark" ? "/logo-full-white.png" : "/logo-full.png"} 
+                alt="Chhapai" 
+                className="h-8" 
+              />
               {!isMobile && <span className="ml-2 text-xl font-semibold">Chhapai</span>}
             </div>
           )}
@@ -332,7 +338,7 @@ const Sidebar = ({
       {/* Mobile Sidebar (Sheet component) */}
       {isMobile && (
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <SheetContent side="left" className="p-0 w-[80%] max-w-[300px]">
+          <SheetContent side="left" className="p-0 w-[85%] max-w-[300px]">
             {renderSidebarContent()}
           </SheetContent>
         </Sheet>

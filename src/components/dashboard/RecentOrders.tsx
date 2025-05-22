@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Order } from '@/lib/firebase/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface RecentOrdersProps {
   orders: Order[];
@@ -49,10 +50,15 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }
     if (timestamp.getSeconds) return new Date(timestamp.getSeconds() * 1000);
     return new Date(timestamp);
   };
+  
+  // Format status for display
+  const formatStatus = (status: string) => {
+    return status.replace(/_/g, ' ');
+  };
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-4">Recent Orders</h3>
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Recent Orders</h3>
       {sortedOrders.length === 0 ? (
         <div className="text-center py-6 text-muted-foreground">
           No orders found
@@ -60,23 +66,25 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }
       ) : (
         <div className="space-y-4">
           {sortedOrders.map((order) => (
-            <div key={order.id} className="border rounded-md p-4">
+            <div key={order.id} className="border rounded-md p-4 hover:bg-muted/5 transition-colors">
               <div className="flex justify-between items-start">
-                <div>
-                  <Link
-                    to={`/orders/${order.id}`}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Order #{order.orderNumber}
-                  </Link>
-                  <div className="text-sm text-muted-foreground mt-1">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/orders/${order.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Order #{order.orderNumber}
+                    </Link>
+                    <Badge className={cn(getStatusColor(order.status), "ml-2")}>
+                      {formatStatus(order.status)}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
                     {order.clientName} • {formatDistanceToNow(getDateFromTimestamp(order.createdAt), { addSuffix: true })}
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Badge variant="outline" className={getStatusColor(order.status)}>
-                      {order.status.replace(/_/g, ' ')}
-                    </Badge>
-                    {showAmount && (
+                  {showAmount && (
+                    <div>
                       <Badge variant="outline" className={
                         order.paymentStatus === 'paid' 
                           ? 'bg-green-100 text-green-800'
@@ -86,8 +94,8 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders, limit, showAmount }
                       }>
                         {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
                 {showAmount && (
                   <div className="text-right">

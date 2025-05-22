@@ -40,27 +40,25 @@ const TopBar = ({ toggleSidebar }: TopBarProps) => {
           variant="ghost" 
           size="icon" 
           onClick={toggleSidebar}
-          className="menu-toggle focus-ring"
+          className="menu-toggle focus-ring mr-2 md:mr-4"
           aria-label="Toggle sidebar"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        
-        <div className="flex items-center ml-4">
-          {/* Logo and title container */}
-          <div className={`${isMobile ? "flex justify-center w-full" : ""}`}>
-            <img 
-              src="/logo-full.png" 
-              alt="Chhapai" 
-              className="h-8 object-contain"
-            />
-            {!isMobile && (
-              <h1 className="ml-3 text-lg font-semibold hidden md:block">
-                Workflow Manager
-              </h1>
-            )}
-          </div>
-        </div>
+      </div>
+      
+      {/* Logo centered on mobile, left-aligned on desktop */}
+      <div className={`absolute left-1/2 transform -translate-x-1/2 md:relative md:left-auto md:transform-none ${isMobile ? "flex justify-center" : "ml-0"}`}>
+        <img 
+          src={theme === "dark" ? "/logo-full-white.png" : "/logo-full.png"} 
+          alt="Chhapai" 
+          className="h-8 object-contain"
+        />
+        {!isMobile && (
+          <h1 className="ml-3 text-lg font-semibold hidden md:block">
+            Workflow Manager
+          </h1>
+        )}
       </div>
       
       <div className="flex items-center space-x-2">

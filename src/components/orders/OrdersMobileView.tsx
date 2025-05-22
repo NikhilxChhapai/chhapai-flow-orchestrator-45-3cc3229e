@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Eye, MoreHorizontal, Plus } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -61,24 +62,25 @@ const OrdersMobileView = ({
   return (
     <div className="grid gap-4">
       {orders.map((order) => (
-        <Card key={order.id}>
-          <CardHeader className="pb-2">
+        <Card key={order.id} className="overflow-hidden">
+          <CardHeader className="pb-2 bg-card">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-lg">{order.orderNumber}</CardTitle>
-                <p className="text-sm text-muted-foreground">{order.clientName}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CardTitle className="text-base">{order.orderNumber}</CardTitle>
+                  <Badge className={cn(getStatusClass(order.status), "text-xs")}>
+                    {formatStatus(order.status)}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{order.clientName}</p>
               </div>
-              <Badge className={getStatusClass(order.status)}>
-                {formatStatus(order.status)}
-              </Badge>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {formatDate(order.createdAt)}
+              </span>
             </div>
           </CardHeader>
-          <CardContent className="pb-3">
+          <CardContent className="pb-3 pt-3">
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-1">
-                <div className="text-sm text-muted-foreground">Date:</div>
-                <div className="text-sm">{formatDate(order.createdAt)}</div>
-              </div>
               <div className="grid grid-cols-2 gap-1">
                 <div className="text-sm text-muted-foreground">Items:</div>
                 <div className="text-sm">{order.products?.length || 0}</div>
@@ -87,22 +89,22 @@ const OrdersMobileView = ({
                 <div className="text-sm text-muted-foreground">Total:</div>
                 <div className="text-sm font-medium">{formatCurrency(order.orderAmount)}</div>
               </div>
-              <div className="pt-2 flex justify-end gap-2">
-                <Link to={`/order/${order.id}`}>
-                  <Button size="sm" className="flex items-center gap-1">
+              <div className="pt-3 flex justify-between items-center gap-2">
+                <Link to={`/order/${order.id}`} className="flex-1">
+                  <Button size="sm" className="w-full flex items-center justify-center gap-1">
                     <Eye className="h-4 w-4" />
-                    <span>View</span>
+                    <span>View Details</span>
                   </Button>
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="icon">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-[160px]">
                     <DropdownMenuItem 
-                      onClick={() => window.open(`/orders/edit/${order.id}`, '_blank')}
+                      onClick={() => window.location.href = `/orders/edit/${order.id}`}
                     >
                       Edit Order
                     </DropdownMenuItem>
